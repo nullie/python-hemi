@@ -4,14 +4,18 @@
 typedef struct {
     PyObject_HEAD
     /* Type-specific fields go here. */
-    void *context;
+    v8::Persistent<v8::Context> context;
 } Context;
 
 static void Context_dealloc(Context* self) {
-    self->ob_type->tp_free((PyObject*)self);
+    self->context.Dispose();
+
+    self->ob_type->tp_free((PyObject *)self);
 }
 
 static int Context_init(Context *self, PyObject *args, PyObject *kwds) {
+    self->context = v8::Context::New();
+
     return 0;
 }
 
