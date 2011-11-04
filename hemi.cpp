@@ -1,4 +1,4 @@
-// -*- c-set-style: cc-mode -*-
+// -*- c-file-style: "cc-mode" -*-
 
 #include <Python.h>
 #include <v8.h>
