@@ -5,7 +5,7 @@ import hemi
 def test_context():
     c = hemi.Context(u's = 12')
 
-    assert c.s == 12
+    assert c.globals.s == 12
 
 
 @raises(Exception)
