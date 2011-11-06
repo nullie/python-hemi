@@ -195,33 +195,45 @@ v8::Handle<v8::Value> py_to_json(PyObject *py) {
         return object;
     }
 
-    return v8::Number::New(123);
+    throw "hello";
 };
 
 PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value) {
     PyObject *rv;
 
-    if(value->IsNumber()) {
-        rv = Py_BuildValue("d", value->NumberValue());
-    } else if (value->IsFunction()) {
-        Object *object = PyObject_New(Object, &FunctionType);
+    if(value->IsInt32())
+        return PyInt_FromLong(value->Int32Value());
 
-        object->context = v8::Persistent<v8::Context>::New(context);
-        object->parent = v8::Persistent<v8::Object>::New(parent);
-        object->object = v8::Persistent<v8::Object>::New(value.As<v8::Object>());
+    if(value->IsNumber())
+        return PyFloat_FromDouble(value->NumberValue());
 
-        rv = (PyObject *)object;
-    } else {
-        Object *object = PyObject_New(Object, &ObjectType);
+    if(value->IsBoolean())
+        return PyBool_FromLong(value->BooleanValue());
 
-        object->context = v8::Persistent<v8::Context>::New(context);
-        object->parent = v8::Persistent<v8::Object>::New(parent);
-        object->object = v8::Persistent<v8::Object>::New(value.As<v8::Object>());
+    if(value->IsNull())
+        Py_RETURN_NONE;
 
-        rv = (PyObject *)object;
+//    if(value->IsUndefined())
+//        return Undefined;
+
+    if(value->IsString()) {
+        v8::String::Utf8Value utf_string(value);
+        return PyUnicode_FromString(*utf_string);
     }
 
-    return rv;
+    Object *object;
+
+    if (value->IsFunction()) {
+        object = PyObject_New(Object, &FunctionType);
+    } else {
+        object = PyObject_New(Object, &ObjectType);
+    }
+
+    object->context = v8::Persistent<v8::Context>::New(context);
+    object->parent = v8::Persistent<v8::Object>::New(parent);
+    object->object = v8::Persistent<v8::Object>::New(value.As<v8::Object>());
+
+    return (PyObject *)object;
 }
 
 #ifndef PyMODINIT_FUNC	/* declarations for DLL import/export */
