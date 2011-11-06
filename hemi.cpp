@@ -60,6 +60,10 @@ extern "C" PyObject * Context_getglobals(Context *self, void *closure) {
 }
 
 extern "C" void Object_dealloc(Object* self) {
+    v8::HandleScope handle_scope;
+
+    self->object->DeleteHiddenValue(v8::String::New("hemi::wrapper"));
+
     self->object.Dispose();
     self->parent.Dispose();
     self->context.Dispose();
@@ -222,6 +226,16 @@ PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, 
 
     Object *object;
 
+    v8::Handle<v8::Value> wrapper = value->ToObject()->GetHiddenValue(v8::String::New("hemi::wrapper"));
+
+    if(!wrapper.IsEmpty()) {
+        object = (Object *)v8::External::Unwrap(wrapper);
+
+        Py_INCREF(object);
+
+        return (PyObject *)object;
+    }
+
     if (value->IsFunction()) {
         object = PyObject_New(Object, &FunctionType);
     } else {
@@ -231,6 +245,8 @@ PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, 
     object->context = v8::Persistent<v8::Context>::New(context);
     object->parent = v8::Persistent<v8::Object>::New(parent);
     object->object = v8::Persistent<v8::Object>::New(value.As<v8::Object>());
+
+    object->object->SetHiddenValue(v8::String::New("hemi::wrapper"), v8::External::Wrap(object));
 
     return (PyObject *)object;
 }
