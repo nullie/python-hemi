@@ -132,8 +132,68 @@ extern "C" PyObject * Function_call(Object *self, PyObject *args, PyObject *kw) 
 };
 
 v8::Handle<v8::Value> py_to_json(PyObject *py) {
-    if(PyInt_Check(py))
-        return v8::Integer::New(PyInt_AS_LONG(py));
+    if(py == Py_True)
+        return v8::True();
+
+    if(py == Py_False)
+        return v8::False();
+
+    if(py == Py_None)
+        return v8::Null();
+
+    if(PyInt_Check(py)) {
+        long value = PyInt_AS_LONG(py);
+
+        if(sizeof(long) == sizeof(int32_t)) {
+            return v8::Integer::New(value);
+        } else {
+            if(-value < 1 << 16 && value < 1 << 16)
+                return v8::Integer::New(value);
+
+            if(value > 0 && value < 1 << 32)
+                return v8::Integer::NewFromUnsigned(value);
+        }
+    }
+
+    if(PyFloat_Check(py))
+        return v8::Number::New(PyFloat_AS_DOUBLE(py));
+
+    if(PyUnicode_Check(py)) {
+        PyObject *py_string = PyUnicode_AsUTF8String(py);
+
+        v8::Handle<v8::String> js_string = v8::String::New(PyString_AS_STRING(py_string));
+
+        return js_string;
+    }
+
+    if(PyList_Check(py)) {
+        uint32_t length = PyList_GET_SIZE(py);
+
+        v8::Handle<v8::Array> array = v8::Array::New(length);
+
+        for(uint32_t i = 0; i < length; i++) {
+            v8::Handle<v8::Value> item = py_to_json(PyList_GET_ITEM(py, i));
+
+            array->Set(i, item);
+        }
+
+        return array;
+    }
+
+    if(PyDict_Check(py)) {
+        PyObject *key, *value;
+        Py_ssize_t pos = 0;
+
+        v8::Handle<v8::Object> object = v8::Object::New();
+
+        while(PyDict_Next(py, &pos, &key, &value)) {
+            v8::Handle<v8::Value> js_key = py_to_json(key);
+
+            object->Set(js_key, py_to_json(value));
+        }
+
+        return object;
+    }
 
     return v8::Number::New(123);
 };
