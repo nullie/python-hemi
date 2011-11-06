@@ -178,10 +178,10 @@ v8::Handle<v8::Value> py_to_json(PyObject *py) {
         if(sizeof(long) == sizeof(int32_t)) {
             return v8::Integer::New(value);
         } else {
-            if(-value < 1 << 16 && value < 1 << 16)
+            if(-value < 1ll << 16 && value < 1ll << 16)
                 return v8::Integer::New(value);
 
-            if(value > 0 && value < 1 << 32)
+            if(value > 0ll && value < 1ll << 32)
                 return v8::Integer::NewFromUnsigned(value);
         }
     }
