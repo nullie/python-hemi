@@ -153,8 +153,26 @@ extern "C" PyObject * Function_call(Object *self, PyObject *args, PyObject *kw) 
 
     v8::Handle<v8::Value> argv[argc];
 
-    for(int i = 0; i < argc; i++) {
-        argv[i] = py_to_json(PySequence_GetItem(args, i));
+    try {
+        for(int i = 0; i < argc; i++) {
+            argv[i] = py_to_json(PySequence_GetItem(args, i));
+        }
+    } catch (PyObject *bad_object) {
+        PyObject *repr = PyObject_Repr(bad_object);
+
+        char *repr_string;
+
+        if(repr == NULL) {
+            repr_string = "<unpresentable object>";
+        } else {
+            repr_string = PyString_AS_STRING(repr);
+        }
+
+        PyErr_Format(PyExc_TypeError, "cannot represent %s to javascript", repr_string);
+
+        Py_XDECREF(repr);
+
+        return NULL;
     }
 
     v8::Handle<v8::Value> result = self->object.As<v8::Function>()->Call(self->parent, argc, argv);
@@ -226,7 +244,7 @@ v8::Handle<v8::Value> py_to_json(PyObject *py) {
         return object;
     }
 
-    throw "hello";
+    throw py;
 };
 
 PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value) {
