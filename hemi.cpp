@@ -199,8 +199,6 @@ v8::Handle<v8::Value> py_to_json(PyObject *py) {
 };
 
 PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value) {
-    PyObject *rv;
-
     if(value->IsInt32())
         return PyInt_FromLong(value->Int32Value());
 
@@ -213,8 +211,9 @@ PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, 
     if(value->IsNull())
         Py_RETURN_NONE;
 
-//    if(value->IsUndefined())
-//        return Undefined;
+    if(value->IsUndefined()) {
+        return Py_INCREF(Undefined), Undefined;
+    }
 
     if(value->IsString()) {
         v8::String::Utf8Value utf_string(value);
@@ -254,6 +253,11 @@ inithemi(void)
 
     if (PyType_Ready(&FunctionType) < 0)
         return;
+
+    if (PyType_Ready(&UndefinedType) < 0)
+        return;
+
+    Undefined = PyObject_New(PyObject, &UndefinedType);
 
     m = Py_InitModule3("hemi", module_methods,
                        "Lightweight V8 wrapper.");
