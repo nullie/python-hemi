@@ -8,19 +8,34 @@ extern "C" void Context_dealloc(Context* self) {
     self->ob_type->tp_free((PyObject *)self);
 }
 
-extern "C" int Context_init(Context *self, PyObject *args, PyObject *kwds) {
+extern "C" PyObject * Context_new(PyTypeObject *subtype, PyObject *args, PyObject *kwds) {
+    Context *self = (Context *)subtype->tp_alloc(subtype, 0);
+
+    if(self != NULL) {
+        //HandleScope handle_scope;
+
+        self->context = v8::Context::New();
+
+        if(self->context.IsEmpty()) {
+            Py_DECREF(self);
+            return NULL;
+        }
+    }
+
+    return (PyObject *)self;
+}
+
+extern "C" PyObject * Context_execute(Context *self, PyObject *args) {
     using namespace v8;
-
-    HandleScope handle_scope;
-
-    self->context = v8::Context::New();
-
-    v8::Context::Scope context_scope(self->context);
 
     char* _source;
 
     if(!PyArg_ParseTuple(args, "es", "utf-8", &_source))
-        return -1;
+        return NULL;
+
+    HandleScope handle_scope;
+
+    v8::Context::Scope context_scope(self->context);
 
     Handle<String> source = String::New(_source);
 
@@ -37,12 +52,24 @@ extern "C" int Context_init(Context *self, PyObject *args, PyObject *kwds) {
 
         PyErr_SetString(PyExc_Exception, *exception_str);
 
-        return -1;
+        return NULL;
     }
 
-    script->Run();
+    Handle<Value> result = script->Run();
 
-    return 0;
+    if(result.IsEmpty()) {
+        Handle<Value> exception = trycatch.Exception();
+
+        String::AsciiValue exception_str(exception);
+
+        PyErr_SetString(PyExc_Exception, *exception_str);
+
+        return NULL;
+    }
+
+    PyObject * py_result = wrap(self->context, Handle<v8::Object>(), result);
+
+    return py_result;
 }
 
 extern "C" PyObject * Context_getglobals(Context *self, void *closure) {
@@ -258,8 +285,6 @@ PyMODINIT_FUNC
 inithemi(void)
 {
     PyObject* m;
-
-    ContextType.tp_new = PyType_GenericNew;
 
     if (PyType_Ready(&ContextType) < 0)
         return;

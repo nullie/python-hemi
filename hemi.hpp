@@ -9,9 +9,17 @@ typedef struct {
     v8::Persistent<v8::Context> context;
 } Context;
 
+extern "C" PyObject * Context_new(PyTypeObject *subtype, PyObject *args, PyObject *kwds);
 extern "C" void Context_dealloc(Context *self);
-extern "C" int Context_init(Context *self, PyObject *args, PyObject *kwds);
+extern "C" PyObject * Context_execute(Context *self, PyObject *args);
 extern "C" PyObject * Context_getglobals(Context *self, void *closure);
+
+static PyMethodDef Context_methods[] = {
+    {(char *)"execute", (PyCFunction)Context_execute, METH_VARARGS,
+     (char *)"Execute source in context"
+    },
+    {NULL} /* Sentinel */
+};
 
 static PyGetSetDef Context_getseters[] = {
     {(char *)"globals",
@@ -50,7 +58,7 @@ static PyTypeObject ContextType = {
     0,		                       /* tp_weaklistoffset */
     0,		                       /* tp_iter */
     0,		                       /* tp_iternext */
-    0,                             /* tp_methods */
+    Context_methods,               /* tp_methods */
     0,                             /* tp_members */
     Context_getseters,             /* tp_getset */
     0,                             /* tp_base */
@@ -58,8 +66,9 @@ static PyTypeObject ContextType = {
     0,                             /* tp_descr_get */
     0,                             /* tp_descr_set */
     0,                             /* tp_dictoffset */
-    (initproc)Context_init,        /* tp_init */
+    0,                             /* tp_init */
     0,                             /* tp_alloc */
+    Context_new,                   /* tp_new */
 };
 
 typedef struct {
