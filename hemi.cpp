@@ -1,6 +1,6 @@
 // -*- c-file-style: "cc-mode" -*-
 
-#include "hemi.h"
+#include "hemi.hpp"
 
 extern "C" void Context_dealloc(Context* self) {
     self->context.Dispose();
@@ -54,13 +54,15 @@ extern "C" PyObject * Context_getglobals(Context *self, void *closure) {
 
     Handle<Value> object(self->context->Global());
 
-    PyObject *wrapped = wrap(self->context, object);
+    PyObject *wrapped = wrap(self->context, Handle<v8::Object>(), object);
 
     return wrapped;
 }
 
 extern "C" void Object_dealloc(Object* self) {
     self->object.Dispose();
+    self->parent.Dispose();
+    self->context.Dispose();
 
     self->ob_type->tp_free((PyObject *)self);
 }
@@ -78,10 +80,11 @@ extern "C" PyObject * Object_getitem(Object *self, PyObject *item) {
         Py_DECREF(_item);
 
         if(!result.IsEmpty())
-            return Py_BuildValue("d", result->NumberValue());
+            return wrap(self->context, self->object, result);
     }
 
     PyErr_SetObject(PyExc_KeyError, item);
+
     return NULL;
 };
 
@@ -106,18 +109,53 @@ extern "C" PyObject * Object_getattr(Object *self, PyObject *name) {
         return NULL;
     }
 
-    return Py_BuildValue("d", result->NumberValue());
+    // Have to reset exception raised by GetAttr
+    PyErr_Clear();
+
+    return wrap(self->context, self->object, result);
 };
 
-PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Value> value) {
+extern "C" PyObject * Function_call(Object *self, PyObject *args, PyObject *kw) {
+    int argc = (int)PySequence_Size(args);
+
+    v8::HandleScope handle_scope;
+
+    v8::Handle<v8::Value> argv[argc];
+
+    for(int i = 0; i < argc; i++) {
+        argv[i] = py_to_json(PySequence_GetItem(args, i));
+    }
+
+    v8::Handle<v8::Value> result = self->object.As<v8::Function>()->Call(self->parent, argc, argv);
+
+    return wrap(self->context, v8::Handle<v8::Object>(), result);
+};
+
+v8::Handle<v8::Value> py_to_json(PyObject *py) {
+    if(PyInt_Check(py))
+        return v8::Integer::New(PyInt_AS_LONG(py));
+
+    return v8::Number::New(123);
+};
+
+PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value) {
     PyObject *rv;
 
     if(value->IsNumber()) {
         rv = Py_BuildValue("d", value->NumberValue());
+    } else if (value->IsFunction()) {
+        Object *object = PyObject_New(Object, &FunctionType);
+
+        object->context = v8::Persistent<v8::Context>::New(context);
+        object->parent = v8::Persistent<v8::Object>::New(parent);
+        object->object = v8::Persistent<v8::Object>::New(value.As<v8::Object>());
+
+        rv = (PyObject *)object;
     } else {
         Object *object = PyObject_New(Object, &ObjectType);
 
         object->context = v8::Persistent<v8::Context>::New(context);
+        object->parent = v8::Persistent<v8::Object>::New(parent);
         object->object = v8::Persistent<v8::Object>::New(value.As<v8::Object>());
 
         rv = (PyObject *)object;
@@ -140,6 +178,9 @@ inithemi(void)
         return;
 
     if (PyType_Ready(&ObjectType) < 0)
+        return;
+
+    if (PyType_Ready(&FunctionType) < 0)
         return;
 
     m = Py_InitModule3("hemi", module_methods,

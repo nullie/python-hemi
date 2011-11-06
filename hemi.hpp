@@ -9,9 +9,9 @@ typedef struct {
     v8::Persistent<v8::Context> context;
 } Context;
 
-extern "C" void Context_dealloc(Context* self);
+extern "C" void Context_dealloc(Context *self);
 extern "C" int Context_init(Context *self, PyObject *args, PyObject *kwds);
-extern "C" PyObject* Context_getglobals(Context *self, void *closure);
+extern "C" PyObject * Context_getglobals(Context *self, void *closure);
 
 static PyGetSetDef Context_getseters[] = {
     {(char *)"globals",
@@ -66,12 +66,13 @@ typedef struct {
     PyObject_HEAD
     /* Type-specific fields go here. */
     v8::Persistent<v8::Context> context;
+    v8::Persistent<v8::Object> parent;
     v8::Persistent<v8::Object> object;
 } Object;
 
-extern "C" void Object_dealloc(Object* self);
-extern "C" PyObject* Object_getitem(Object *self, PyObject *item);
-extern "C" PyObject* Object_getattr(Object *self, PyObject *name);
+extern "C" void Object_dealloc(Object *self);
+extern "C" PyObject * Object_getitem(Object *self, PyObject *item);
+extern "C" PyObject * Object_getattr(Object *self, PyObject *name);
 
 static PyMappingMethods Object_as_mapping = {
     0,
@@ -103,7 +104,36 @@ static PyTypeObject ObjectType = {
     "Javascript object",          /* tp_doc */
 };
 
-PyObject* wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Value> value);
+extern "C" PyObject * Function_call(Object *self, PyObject *args, PyObject *kw);
+
+static PyTypeObject FunctionType = {
+    PyObject_HEAD_INIT(NULL)
+    0,                            /* ob_size */
+    "hemi.Function",              /* tp_name */
+    sizeof(Object),               /* tp_basicsize */
+    0,                            /* tp_itemsize */
+    (destructor)Object_dealloc,   /* tp_dealloc */
+    0,                            /* tp_print */
+    0,                            /* tp_getattr */
+    0,                            /* tp_setattr */
+    0,                            /* tp_compare */
+    0,                            /* tp_repr */
+    0,                            /* tp_as_number */
+    0,                            /* tp_as_sequence */
+    &Object_as_mapping,           /* tp_as_mapping */
+    0,                            /* tp_hash */
+    (ternaryfunc)Function_call,   /* tp_call */
+    0,                            /* tp_str */
+    (getattrofunc)Object_getattr, /* tp_getattro */
+    0,                            /* tp_setattro */
+    0,                            /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,           /* tp_flags */
+    "Javascript function",        /* tp_doc */
+};
+
+v8::Handle<v8::Value> py_to_json(PyObject *py);
+
+PyObject* wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value);
 
 static PyMethodDef module_methods[] = {
     {NULL}  /* Sentinel */
