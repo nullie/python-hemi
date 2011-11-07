@@ -25,7 +25,7 @@ extern "C" PyObject * Context_new(PyTypeObject *subtype, PyObject *args, PyObjec
     return (PyObject *)self;
 }
 
-extern "C" PyObject * Context_execute(Context *self, PyObject *args) {
+extern "C" PyObject * Context_eval(Context *self, PyObject *args) {
     using namespace v8;
 
     char* _source;
@@ -72,7 +72,7 @@ extern "C" PyObject * Context_execute(Context *self, PyObject *args) {
     return py_result;
 }
 
-extern "C" PyObject * Context_getglobals(Context *self, void *closure) {
+extern "C" PyObject * Context_getlocals(Context *self, void *closure) {
     using namespace v8;
 
     v8::Context::Scope context_scope(self->context);

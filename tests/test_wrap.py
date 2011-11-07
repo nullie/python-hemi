@@ -9,6 +9,6 @@ def test_reuse():
 
     c = hemi.Context()
 
-    c.execute(source)
+    c.eval(source)
 
-    assert c.globals.a is c.globals.a
+    assert c.locals.a is c.locals.a

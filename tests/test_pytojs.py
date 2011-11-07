@@ -14,6 +14,6 @@ def test_exception():
 
     c = hemi.Context()
 
-    c.execute(source)
+    c.eval(source)
 
-    c.globals.f(datetime.now())
+    c.locals.f(datetime.now())

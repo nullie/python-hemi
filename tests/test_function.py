@@ -9,9 +9,9 @@ def test_call():
 
     context = hemi.Context()
 
-    context.execute(source)
+    context.eval(source)
 
-    f = context.globals.test
+    f = context.locals.test
 
     assert f(234) == 123
 
@@ -25,8 +25,8 @@ def test_args():
 
     context = hemi.Context()
 
-    context.execute(source)
+    context.eval(source)
 
-    val = context.globals.test(24)
+    val = context.locals.test(24)
 
     assert val == 36

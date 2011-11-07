@@ -11,20 +11,20 @@ typedef struct {
 
 extern "C" PyObject * Context_new(PyTypeObject *subtype, PyObject *args, PyObject *kwds);
 extern "C" void Context_dealloc(Context *self);
-extern "C" PyObject * Context_execute(Context *self, PyObject *args);
-extern "C" PyObject * Context_getglobals(Context *self, void *closure);
+extern "C" PyObject * Context_eval(Context *self, PyObject *args);
+extern "C" PyObject * Context_getlocals(Context *self, void *closure);
 
 static PyMethodDef Context_methods[] = {
-    {(char *)"execute", (PyCFunction)Context_execute, METH_VARARGS,
-     (char *)"Execute source in context"
+    {(char *)"eval", (PyCFunction)Context_eval, METH_VARARGS,
+     (char *)"Eval source in context"
     },
     {NULL} /* Sentinel */
 };
 
 static PyGetSetDef Context_getseters[] = {
-    {(char *)"globals",
-     (getter)Context_getglobals, NULL,
-     (char *)"Context globals",
+    {(char *)"locals",
+     (getter)Context_getlocals, NULL,
+     (char *)"Context locals",
      NULL},
     {NULL} /* Sentinel */
 };
