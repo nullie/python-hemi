@@ -226,6 +226,8 @@ v8::Handle<v8::Value> py_to_json(PyObject *py) {
 
         v8::Handle<v8::String> js_string = v8::String::New(PyString_AS_STRING(py_string));
 
+        Py_DECREF(py_string);
+
         return js_string;
     }
 
