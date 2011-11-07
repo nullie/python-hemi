@@ -151,6 +151,8 @@ extern "C" PyObject * Function_call(Object *self, PyObject *args, PyObject *kw) 
 
     v8::HandleScope handle_scope;
 
+    v8::Context::Scope context_scope(self->context);
+
     v8::Handle<v8::Value> argv[argc];
 
     try {
