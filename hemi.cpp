@@ -209,6 +209,18 @@ v8::Handle<v8::Value> py_to_json(PyObject *py) {
     if(PyFloat_Check(py))
         return v8::Number::New(PyFloat_AS_DOUBLE(py));
 
+    if(PyString_Check(py)) {
+        PyObject *unicode = PyUnicode_FromObject(py);
+        PyObject *py_string = PyUnicode_AsUTF8String(unicode);
+
+        v8::Handle<v8::String> js_string = v8::String::New(PyString_AS_STRING(py_string));
+
+        Py_DECREF(py_string);
+        Py_DECREF(unicode);
+
+        return js_string;
+    }
+
     if(PyUnicode_Check(py)) {
         PyObject *py_string = PyUnicode_AsUTF8String(py);
 
