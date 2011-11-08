@@ -1,4 +1,4 @@
-Hemi is a way to execute Javascript code from Python. It's uses Google's V8.
+Hemi is a way to execute Javascript code from Python. It uses Google's V8.
 
 Example usage:
 
