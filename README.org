@@ -16,3 +16,12 @@ Example usage:
 u'[object global]'
 >>> ctx.locals.test.apply('hello!')
 u'hello!'
+
+* BUGS:
+  - [ ] Reused wrappers reuse parent, that should not happen.
+
+* TODO:
+  - [ ] Javascript exception tracebacks.
+  - [ ] Passing wrapped objects back to Javascript.
+  - [ ] Wrapping Python functions into Javascript.
+  - [ ] new operator.
