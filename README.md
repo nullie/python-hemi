@@ -27,7 +27,7 @@ Example usage
 Bugs
 ----
 
-- Reused wrappers reuse parent, that should not happen.
+- No yet known.
 
 Todo
 ----
