@@ -27,7 +27,7 @@ Example usage
 Bugs
 ----
 
-- No yet known.
+- None yet known.
 
 Todo
 ----
