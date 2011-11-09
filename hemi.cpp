@@ -162,7 +162,7 @@ extern "C" PyObject * Function_call(Object *self, PyObject *args, PyObject *kw) 
     } catch (PyObject *bad_object) {
         PyObject *repr = PyObject_Repr(bad_object);
 
-        char *repr_string;
+        const char *repr_string;
 
         if(repr == NULL) {
             repr_string = "<unpresentable object>";
