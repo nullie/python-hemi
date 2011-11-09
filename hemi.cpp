@@ -12,8 +12,6 @@ extern "C" PyObject * Context_new(PyTypeObject *subtype, PyObject *args, PyObjec
     Context *self = (Context *)subtype->tp_alloc(subtype, 0);
 
     if(self != NULL) {
-        //HandleScope handle_scope;
-
         self->context = v8::Context::New();
 
         if(self->context.IsEmpty()) {
@@ -43,14 +41,10 @@ extern "C" PyObject * Context_eval(Context *self, PyObject *args) {
 
     TryCatch trycatch;
 
-    Handle<Script> script = Script::Compile(source);
+    Handle<Script> script = Script::Compile(source, String::New("<string>"));
 
     if(script.IsEmpty()) {
-        Handle<Value> exception = trycatch.Exception();
-
-        String::AsciiValue exception_str(exception);
-
-        PyErr_SetString(PyExc_Exception, *exception_str);
+        set_exception(trycatch);
 
         return NULL;
     }
@@ -58,11 +52,7 @@ extern "C" PyObject * Context_eval(Context *self, PyObject *args) {
     Handle<Value> result = script->Run();
 
     if(result.IsEmpty()) {
-        Handle<Value> exception = trycatch.Exception();
-
-        String::AsciiValue exception_str(exception);
-
-        PyErr_SetString(PyExc_Exception, *exception_str);
+        set_exception(trycatch);
 
         return NULL;
     }
@@ -155,7 +145,7 @@ extern "C" PyObject * Function_call(Object *self, PyObject *args, PyObject *kw) 
 
     try {
         for(int i = 0; i < argc; i++) {
-            argv[i] = py_to_json(PySequence_GetItem(args, i));
+            argv[i] = unwrap(PySequence_GetItem(args, i));
         }
     } catch (PyObject *bad_object) {
         PyObject *repr = PyObject_Repr(bad_object);
@@ -175,12 +165,52 @@ extern "C" PyObject * Function_call(Object *self, PyObject *args, PyObject *kw) 
         return NULL;
     }
 
+    v8::TryCatch trycatch;
+
     v8::Handle<v8::Value> result = self->object.As<v8::Function>()->Call(self->parent, argc, argv);
+
+    if(result.IsEmpty()) {
+        set_exception(trycatch);
+
+        return NULL;
+    }
 
     return wrap(self->context, v8::Handle<v8::Object>(), result);
 };
 
-v8::Handle<v8::Value> py_to_json(PyObject *py) {
+void set_exception(v8::TryCatch &trycatch) {
+    using namespace v8;
+
+    Handle<Value> exception = trycatch.Exception();
+
+    String::AsciiValue name(exception.As<v8::Object>()->GetConstructorName());
+
+    for(supported_error_type *t = supported_errors; t->name; t++) {
+        if(strcmp(*name, t->name) == 0) {
+            Handle<Message> message = trycatch.Message();
+
+            PyObject *msg = wrap_primitive(exception.As<v8::Object>()->Get(String::New("message")));
+
+            PyObject *filename = wrap_primitive(message->GetScriptResourceName());
+
+            int lineno = message->GetLineNumber();
+
+            int offset = message->GetEndColumn();
+
+            PyObject *text = wrap_primitive(message->GetSourceLine());
+
+            PyObject *exc_value = Py_BuildValue("N(NiiN)", msg, filename, lineno, offset, text);
+
+            PyErr_SetObject(t->type, exc_value);
+
+            return;
+        }
+    }
+
+    PyErr_SetObject(PyExc_Exception, wrap(v8::Context::GetCurrent(), v8::Handle<v8::Object>(), exception));
+}
+
+v8::Handle<v8::Value> unwrap(PyObject *py) {
     if(py == Py_True)
         return v8::True();
 
@@ -235,7 +265,7 @@ v8::Handle<v8::Value> py_to_json(PyObject *py) {
         v8::Handle<v8::Array> array = v8::Array::New(length);
 
         for(uint32_t i = 0; i < length; i++) {
-            v8::Handle<v8::Value> item = py_to_json(PyList_GET_ITEM(py, i));
+            v8::Handle<v8::Value> item = unwrap(PyList_GET_ITEM(py, i));
 
             array->Set(i, item);
         }
@@ -250,9 +280,9 @@ v8::Handle<v8::Value> py_to_json(PyObject *py) {
         v8::Handle<v8::Object> object = v8::Object::New();
 
         while(PyDict_Next(py, &pos, &key, &value)) {
-            v8::Handle<v8::Value> js_key = py_to_json(key);
+            v8::Handle<v8::Value> js_key = unwrap(key);
 
-            object->Set(js_key, py_to_json(value));
+            object->Set(js_key, unwrap(value));
         }
 
         return object;
@@ -262,6 +292,27 @@ v8::Handle<v8::Value> py_to_json(PyObject *py) {
 };
 
 PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value) {
+    Object *object;
+
+    object = (Object *)wrap_primitive(value);
+
+    if(object != NULL)
+        return (PyObject *)object;
+
+    if (value->IsFunction()) {
+        object = PyObject_New(Object, &FunctionType);
+    } else {
+        object = PyObject_New(Object, &ObjectType);
+    }
+
+    object->context = v8::Persistent<v8::Context>::New(context);
+    object->parent = v8::Persistent<v8::Object>::New(parent);
+    object->object = v8::Persistent<v8::Object>::New(value.As<v8::Object>());
+
+    return (PyObject *)object;
+}
+
+PyObject * wrap_primitive(v8::Handle<v8::Value> value) {
     if(value->IsInt32())
         return PyInt_FromLong(value->Int32Value());
 
@@ -279,23 +330,11 @@ PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, 
     }
 
     if(value->IsString()) {
-        v8::String::Utf8Value utf_string(value);
-        return PyUnicode_FromString(*utf_string);
+        v8::String::Utf8Value string(value);
+        return PyUnicode_DecodeUTF8(*string, string.length(), NULL);
     }
 
-    Object *object;
-
-    if (value->IsFunction()) {
-        object = PyObject_New(Object, &FunctionType);
-    } else {
-        object = PyObject_New(Object, &ObjectType);
-    }
-
-    object->context = v8::Persistent<v8::Context>::New(context);
-    object->parent = v8::Persistent<v8::Object>::New(parent);
-    object->object = v8::Persistent<v8::Object>::New(value.As<v8::Object>());
-
-    return (PyObject *)object;
+    return NULL;
 }
 
 #ifndef PyMODINIT_FUNC	/* declarations for DLL import/export */
@@ -325,4 +364,8 @@ inithemi(void)
 
     Py_INCREF(&ContextType);
     PyModule_AddObject(m, "Context", (PyObject *)&ContextType);
+
+    for(supported_error_type *t = supported_errors; t->name; t++) {
+        PyModule_AddObject(m, t->name, t->type);
+    }
 }

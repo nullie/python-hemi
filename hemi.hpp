@@ -167,9 +167,28 @@ static PyTypeObject UndefinedType = {
 
 PyObject *Undefined;
 
-v8::Handle<v8::Value> py_to_json(PyObject *py);
+typedef struct {
+    const char *name;
+    PyObject *type;
+} supported_error_type;
 
-PyObject* wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value);
+PyObject *Error = PyErr_NewException((char *)"hemi.Error", PyExc_SyntaxError, NULL);
+
+supported_error_type supported_errors[] = {
+    {"Error", Error},
+    {"RangeError", PyErr_NewException((char *)"hemi.RangeError", Error, NULL)},
+    {"ReferenceError", PyErr_NewException((char *)"hemi.ReferenceError", Error, NULL)},
+    {"SyntaxError", PyErr_NewException((char *)"hemi.SyntaxError", Error, NULL)},
+    {"TypeError", PyErr_NewException((char *)"hemi.TypeError", Error, NULL)},
+    {NULL} /* Sentinel */
+};
+
+void set_exception(v8::TryCatch &trycatch);
+
+v8::Handle<v8::Value> unwrap(PyObject *py);
+
+PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value);
+PyObject * wrap_primitive(v8::Handle<v8::Value> value);
 
 static PyMethodDef module_methods[] = {
     {NULL}  /* Sentinel */
