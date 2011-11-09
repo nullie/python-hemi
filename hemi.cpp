@@ -295,8 +295,6 @@ PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, 
     object->parent = v8::Persistent<v8::Object>::New(parent);
     object->object = v8::Persistent<v8::Object>::New(value.As<v8::Object>());
 
-    object->object->SetHiddenValue(v8::String::New("hemi::wrapper"), v8::External::Wrap(object));
-
     return (PyObject *)object;
 }
 
