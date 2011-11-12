@@ -167,7 +167,12 @@ extern "C" PyObject * FunctionWrapper_call(ObjectWrapper *self, PyObject *args, 
 
     v8::TryCatch trycatch;
 
-    v8::Handle<v8::Value> result = self->object.As<v8::Function>()->Call(self->parent, argc, argv);
+    v8::Handle<v8::Object> recv = self->parent;
+
+    if(recv.IsEmpty())
+        recv = v8::Undefined().As<v8::Object>();
+
+    v8::Handle<v8::Value> result = self->object.As<v8::Function>()->Call(recv, argc, argv);
 
     if(result.IsEmpty()) {
         set_exception(trycatch);
@@ -263,6 +268,12 @@ v8::Handle<v8::Value> unwrap(PyObject *py) {
         Py_DECREF(py_string);
 
         return js_string;
+    }
+
+    if(PyObject_IsInstance(py, (PyObject *)&ObjectWrapperType)) {
+        ObjectWrapper *wrapper = (ObjectWrapper *)py;
+
+        return wrapper->object;
     }
 
     if(PyList_Check(py)) {
