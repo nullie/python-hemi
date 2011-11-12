@@ -30,3 +30,19 @@ def test_args():
     val = context.locals.test(24)
 
     assert val == 36
+
+
+def test_apply():
+    source = """
+    (function() {
+        return this + 2;
+    })
+    """
+
+    ctx = hemi.Context()
+
+    f = ctx.eval(source)
+
+    v = f.apply(3)
+
+    assert v == 5

@@ -454,6 +454,8 @@ inithemi(void)
     if (PyType_Ready(&ObjectWrapperType) < 0)
         return;
 
+    FunctionWrapperType.tp_base = &ObjectWrapperType;
+
     if (PyType_Ready(&FunctionWrapperType) < 0)
         return;
 
