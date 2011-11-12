@@ -33,6 +33,5 @@ Todo
 ----
 
 - Javascript exception tracebacks.
-- Passing wrapped objects back to Javascript.
 - Wrapping Python functions into Javascript.
 - new operator.
