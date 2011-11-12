@@ -12,11 +12,19 @@ typedef struct {
 extern "C" PyObject * Context_new(PyTypeObject *subtype, PyObject *args, PyObject *kwds);
 extern "C" void Context_dealloc(Context *self);
 extern "C" PyObject * Context_eval(Context *self, PyObject *args);
+extern "C" PyObject * Context_Object(Context *self, PyObject *args);
+extern "C" PyObject * Context_Function(Context *self, PyObject *args);
 extern "C" PyObject * Context_getlocals(Context *self, void *closure);
 
 static PyMethodDef Context_methods[] = {
     {(char *)"eval", (PyCFunction)Context_eval, METH_VARARGS,
      (char *)"Eval source in context"
+    },
+    {(char *)"Object", (PyCFunction)Context_Object, METH_VARARGS,
+     (char *)"Create Javascript object"
+    },
+    {(char *)"Function", (PyCFunction)Context_Function, METH_VARARGS,
+     (char *)"Create Javascript function"
     },
     {NULL} /* Sentinel */
 };
@@ -94,7 +102,7 @@ static PyMappingMethods ObjectWrapper_as_mapping = {
 static PyTypeObject ObjectWrapperType = {
     PyObject_HEAD_INIT(NULL)
     0,                            /* ob_size */
-    "hemi.ObjectWrapper",                /* tp_name */
+    "hemi.Object",                /* tp_name */
     sizeof(ObjectWrapper),               /* tp_basicsize */
     0,                            /* tp_itemsize */
     (destructor)ObjectWrapper_dealloc,   /* tp_dealloc */
@@ -121,7 +129,7 @@ extern "C" PyObject * FunctionWrapper_call(ObjectWrapper *self, PyObject *args, 
 static PyTypeObject FunctionWrapperType = {
     PyObject_HEAD_INIT(NULL)
     0,                            /* ob_size */
-    "hemi.FunctionWrapper",              /* tp_name */
+    "hemi.Function",              /* tp_name */
     sizeof(ObjectWrapper),        /* tp_basicsize */
     0,                            /* tp_itemsize */
     0,                            /* tp_dealloc */

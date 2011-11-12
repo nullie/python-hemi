@@ -62,6 +62,24 @@ extern "C" PyObject * Context_eval(Context *self, PyObject *args) {
     return py_result;
 }
 
+extern "C" PyObject * Context_Object(Context *self, PyObject *args) {
+    using namespace v8;
+
+    HandleScope handle_scope;
+
+    v8::Context::Scope context_scope(self->context);
+
+    Handle<Value> object = Object::New();
+
+    PyObject *result = wrap(self->context, v8::Handle<Object>(), object);
+
+    return result;
+}
+
+extern "C" PyObject * Context_Function(Context *self, PyObject *args) {
+    return NULL;
+}
+
 extern "C" PyObject * Context_getlocals(Context *self, void *closure) {
     using namespace v8;
 

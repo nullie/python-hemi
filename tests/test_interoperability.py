@@ -51,3 +51,21 @@ def test_modification():
     assert f(d, 'bar') == 'baz'
 
     assert d['bar'] == 'baz'
+
+
+def test_object():
+    ctx = hemi.Context()
+
+    o = ctx.Object()
+
+    o.foo = 'bar'
+
+    assert o.foo == 'bar'
+
+
+def test_function():
+    ctx = hemi.Context()
+
+    f = ctx.Function()
+
+    f()
