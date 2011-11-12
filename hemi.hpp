@@ -118,7 +118,7 @@ extern "C" PyObject * FunctionWrapper_call(ObjectWrapper *self, PyObject *args, 
 static PyTypeObject FunctionWrapperType = {
     PyObject_HEAD_INIT(NULL)
     0,                            /* ob_size */
-    "hemi.Function",              /* tp_name */
+    "hemi.FunctionWrapper",              /* tp_name */
     sizeof(ObjectWrapper),        /* tp_basicsize */
     0,                            /* tp_itemsize */
     0,                            /* tp_dealloc */
