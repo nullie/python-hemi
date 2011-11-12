@@ -36,4 +36,3 @@ Todo
 - Passing wrapped objects back to Javascript.
 - Wrapping Python functions into Javascript.
 - new operator.
-- A way to turn Javascript objects into dict and list.
