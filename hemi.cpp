@@ -41,7 +41,7 @@ extern "C" PyObject * Context_eval(Context *self, PyObject *args) {
 
     TryCatch trycatch;
 
-    Handle<Script> script = Script::Compile(source, String::New("<string>"));
+    Handle<Script> script = Script::Compile(source);
 
     if(script.IsEmpty()) {
         set_exception(trycatch);
@@ -191,7 +191,13 @@ void set_exception(v8::TryCatch &trycatch) {
 
             PyObject *msg = wrap_primitive(exception.As<Object>()->Get(String::New("message")));
 
-            PyObject *filename = wrap_primitive(message->GetScriptResourceName());
+            Handle<Value> filename = message->GetScriptResourceName();
+
+            if(filename->IsUndefined()) {
+                filename = String::New("<string>");
+            }
+
+            PyObject *py_filename = wrap_primitive(filename);
 
             int lineno = message->GetLineNumber();
 
@@ -199,7 +205,7 @@ void set_exception(v8::TryCatch &trycatch) {
 
             PyObject *text = wrap_primitive(message->GetSourceLine());
 
-            PyObject *exc_value = Py_BuildValue("N(NiiN)", msg, filename, lineno, offset, text);
+            PyObject *exc_value = Py_BuildValue("N(NiiN)", msg, py_filename, lineno, offset, text);
 
             PyErr_SetObject(t->type, exc_value);
 
