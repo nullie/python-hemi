@@ -76,7 +76,7 @@ extern "C" PyObject * Context_getlocals(Context *self, void *closure) {
     return wrapped;
 }
 
-extern "C" void Object_dealloc(Object* self) {
+extern "C" void ObjectWrapper_dealloc(ObjectWrapper* self) {
     v8::HandleScope handle_scope;
 
     self->object.Dispose();
@@ -86,7 +86,7 @@ extern "C" void Object_dealloc(Object* self) {
     self->ob_type->tp_free((PyObject *)self);
 }
 
-extern "C" PyObject * Object_getitem(Object *self, PyObject *item) {
+extern "C" PyObject * ObjectWrapper_getitem(ObjectWrapper *self, PyObject *item) {
     using namespace v8;
 
     if(PyUnicode_Check(item)) {
@@ -107,7 +107,7 @@ extern "C" PyObject * Object_getitem(Object *self, PyObject *item) {
     return NULL;
 };
 
-extern "C" PyObject * Object_getattr(Object *self, PyObject *name) {
+extern "C" PyObject * ObjectWrapper_getattr(ObjectWrapper *self, PyObject *name) {
     using namespace v8;
 
     PyObject *value = PyObject_GenericGetAttr((PyObject *)self, name);
@@ -134,7 +134,7 @@ extern "C" PyObject * Object_getattr(Object *self, PyObject *name) {
     return wrap(self->context, self->object, result);
 };
 
-extern "C" PyObject * Function_call(Object *self, PyObject *args, PyObject *kw) {
+extern "C" PyObject * FunctionWrapper_call(ObjectWrapper *self, PyObject *args, PyObject *kw) {
     int argc = (int)PySequence_Size(args);
 
     v8::HandleScope handle_scope;
@@ -183,13 +183,13 @@ void set_exception(v8::TryCatch &trycatch) {
 
     Handle<Value> exception = trycatch.Exception();
 
-    String::AsciiValue name(exception.As<v8::Object>()->GetConstructorName());
+    String::AsciiValue name(exception.As<Object>()->GetConstructorName());
 
     for(supported_error_type *t = supported_errors; t->name; t++) {
         if(strcmp(*name, t->name) == 0) {
             Handle<Message> message = trycatch.Message();
 
-            PyObject *msg = wrap_primitive(exception.As<v8::Object>()->Get(String::New("message")));
+            PyObject *msg = wrap_primitive(exception.As<Object>()->Get(String::New("message")));
 
             PyObject *filename = wrap_primitive(message->GetScriptResourceName());
 
@@ -207,7 +207,7 @@ void set_exception(v8::TryCatch &trycatch) {
         }
     }
 
-    PyErr_SetObject(PyExc_Exception, wrap(v8::Context::GetCurrent(), v8::Handle<v8::Object>(), exception));
+    PyErr_SetObject(PyExc_Exception, wrap(v8::Context::GetCurrent(), Handle<Object>(), exception));
 }
 
 v8::Handle<v8::Value> unwrap(PyObject *py) {
@@ -292,17 +292,17 @@ v8::Handle<v8::Value> unwrap(PyObject *py) {
 };
 
 PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value) {
-    Object *object;
+    ObjectWrapper *object;
 
-    object = (Object *)wrap_primitive(value);
+    object = (ObjectWrapper *)wrap_primitive(value);
 
     if(object != NULL)
         return (PyObject *)object;
 
     if (value->IsFunction()) {
-        object = PyObject_New(Object, &FunctionType);
+        object = PyObject_New(ObjectWrapper, &FunctionWrapperType);
     } else {
-        object = PyObject_New(Object, &ObjectType);
+        object = PyObject_New(ObjectWrapper, &ObjectWrapperType);
     }
 
     object->context = v8::Persistent<v8::Context>::New(context);
@@ -337,6 +337,103 @@ PyObject * wrap_primitive(v8::Handle<v8::Value> value) {
     return NULL;
 }
 
+PyObject * _pythonify(v8::Handle<v8::Value> value) {
+    using namespace v8;
+
+    uint32_t i;
+    PyObject *py_value;
+
+    PyObject *object = wrap_primitive(value);
+
+    if(object)
+        return object;
+
+    if(value->IsArray()) {
+        Handle<Array> array = value.As<Array>();
+        uint32_t array_length = array->Length();
+
+        object = PyList_New(array_length);
+
+        if(object == NULL)
+            return NULL;
+
+        for(i = 0; i < array_length; i++) {
+            py_value = _pythonify(array->Get(i));
+
+            if(py_value == NULL) {
+                Py_DECREF(object);
+
+                return NULL;
+            }
+
+            PyList_SET_ITEM(object, i, py_value);
+        }
+
+        return object;
+    } else {
+        object = PyDict_New();
+
+        if(object == NULL)
+            return NULL;
+
+        Handle<Object> js_object = value.As<Object>();
+
+        Handle<Array> properties = js_object->GetOwnPropertyNames();
+
+        uint32_t properties_length = properties->Length();
+
+        for(i = 0; i < properties_length; i++) {
+            Handle<Value> name = properties->Get(i);
+            Handle<Value> value = js_object->Get(name);
+
+            PyObject *py_key = _pythonify(name);
+
+            if(py_key == NULL) {
+                Py_DECREF(object);
+                return NULL;
+            }
+
+            py_value = _pythonify(value);
+
+            if(py_value == NULL) {
+                Py_DECREF(object);
+                Py_DECREF(py_key);
+
+                return NULL;
+            }
+
+            if(PyDict_SetItem(object, py_key, py_value) == -1) {
+                Py_DECREF(object);
+                Py_DECREF(py_key);
+                Py_DECREF(py_value);
+
+                return NULL;
+            }
+        }
+
+        return object;
+    }
+}
+
+extern "C" PyObject * pythonify(PyObject *self, PyObject *args) {
+    PyObject *object;
+
+    if(!PyArg_ParseTuple(args, "O", &object))
+        return NULL;
+
+    if(PyObject_IsInstance(object, (PyObject *)&ObjectWrapperType)) {
+        v8::HandleScope handle_scope;
+
+        ObjectWrapper *wrapper = (ObjectWrapper *)object;
+
+        v8::Context::Scope context_scope(wrapper->context);
+
+        object = _pythonify(wrapper->object);
+    }
+
+    return object;
+}
+
 #ifndef PyMODINIT_FUNC	/* declarations for DLL import/export */
 #define PyMODINIT_FUNC void
 #endif
@@ -348,10 +445,10 @@ inithemi(void)
     if (PyType_Ready(&ContextType) < 0)
         return;
 
-    if (PyType_Ready(&ObjectType) < 0)
+    if (PyType_Ready(&ObjectWrapperType) < 0)
         return;
 
-    if (PyType_Ready(&FunctionType) < 0)
+    if (PyType_Ready(&FunctionWrapperType) < 0)
         return;
 
     if (PyType_Ready(&UndefinedType) < 0)

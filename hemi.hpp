@@ -77,24 +77,24 @@ typedef struct {
     v8::Persistent<v8::Context> context;
     v8::Persistent<v8::Object> parent;
     v8::Persistent<v8::Object> object;
-} Object;
+} ObjectWrapper;
 
-extern "C" void Object_dealloc(Object *self);
-extern "C" PyObject * Object_getitem(Object *self, PyObject *item);
-extern "C" PyObject * Object_getattr(Object *self, PyObject *name);
+extern "C" void ObjectWrapper_dealloc(ObjectWrapper *self);
+extern "C" PyObject * ObjectWrapper_getitem(ObjectWrapper *self, PyObject *item);
+extern "C" PyObject * ObjectWrapper_getattr(ObjectWrapper *self, PyObject *name);
 
-static PyMappingMethods Object_as_mapping = {
+static PyMappingMethods ObjectWrapper_as_mapping = {
     0,
-    (binaryfunc)Object_getitem,
+    (binaryfunc)ObjectWrapper_getitem,
 };
 
-static PyTypeObject ObjectType = {
+static PyTypeObject ObjectWrapperType = {
     PyObject_HEAD_INIT(NULL)
     0,                            /* ob_size */
-    "hemi.Object",                /* tp_name */
-    sizeof(Object),               /* tp_basicsize */
+    "hemi.ObjectWrapper",                /* tp_name */
+    sizeof(ObjectWrapper),               /* tp_basicsize */
     0,                            /* tp_itemsize */
-    (destructor)Object_dealloc,   /* tp_dealloc */
+    (destructor)ObjectWrapper_dealloc,   /* tp_dealloc */
     0,                            /* tp_print */
     0,                            /* tp_getattr */
     0,                            /* tp_setattr */
@@ -102,26 +102,26 @@ static PyTypeObject ObjectType = {
     0,                            /* tp_repr */
     0,                            /* tp_as_number */
     0,                            /* tp_as_sequence */
-    &Object_as_mapping,           /* tp_as_mapping */
+    &ObjectWrapper_as_mapping,           /* tp_as_mapping */
     0,                            /* tp_hash */
     0,                            /* tp_call */
     0,                            /* tp_str */
-    (getattrofunc)Object_getattr, /* tp_getattro */
+    (getattrofunc)ObjectWrapper_getattr, /* tp_getattro */
     0,                            /* tp_setattro */
     0,                            /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT,           /* tp_flags */
     "Javascript object",          /* tp_doc */
 };
 
-extern "C" PyObject * Function_call(Object *self, PyObject *args, PyObject *kw);
+extern "C" PyObject * FunctionWrapper_call(ObjectWrapper *self, PyObject *args, PyObject *kw);
 
-static PyTypeObject FunctionType = {
+static PyTypeObject FunctionWrapperType = {
     PyObject_HEAD_INIT(NULL)
     0,                            /* ob_size */
     "hemi.Function",              /* tp_name */
-    sizeof(Object),               /* tp_basicsize */
+    sizeof(ObjectWrapper),               /* tp_basicsize */
     0,                            /* tp_itemsize */
-    (destructor)Object_dealloc,   /* tp_dealloc */
+    (destructor)ObjectWrapper_dealloc,   /* tp_dealloc */
     0,                            /* tp_print */
     0,                            /* tp_getattr */
     0,                            /* tp_setattr */
@@ -129,11 +129,11 @@ static PyTypeObject FunctionType = {
     0,                            /* tp_repr */
     0,                            /* tp_as_number */
     0,                            /* tp_as_sequence */
-    &Object_as_mapping,           /* tp_as_mapping */
+    &ObjectWrapper_as_mapping,           /* tp_as_mapping */
     0,                            /* tp_hash */
-    (ternaryfunc)Function_call,   /* tp_call */
+    (ternaryfunc)FunctionWrapper_call,   /* tp_call */
     0,                            /* tp_str */
-    (getattrofunc)Object_getattr, /* tp_getattro */
+    (getattrofunc)ObjectWrapper_getattr, /* tp_getattro */
     0,                            /* tp_setattro */
     0,                            /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT,           /* tp_flags */
@@ -190,6 +190,11 @@ v8::Handle<v8::Value> unwrap(PyObject *py);
 PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value);
 PyObject * wrap_primitive(v8::Handle<v8::Value> value);
 
+extern "C" PyObject * pythonify(PyObject *self, PyObject *args);
+
 static PyMethodDef module_methods[] = {
+    {(char *)"pythonify", (PyCFunction)pythonify, METH_VARARGS,
+     (char *)"Recursively turn wrapped Javascript objects into lists and dicts"
+    },
     {NULL}  /* Sentinel */
 };
