@@ -89,23 +89,51 @@ extern "C" void ObjectWrapper_dealloc(ObjectWrapper* self) {
 extern "C" PyObject * ObjectWrapper_getitem(ObjectWrapper *self, PyObject *item) {
     using namespace v8;
 
-    if(PyUnicode_Check(item)) {
-        PyObject *_item = PyUnicode_AsUTF8String(item);
+    HandleScope handle_scope;
 
-        v8::Context::Scope context_scope(self->context);
+    v8::Context::Scope context_scope(self->context);
 
-        Handle<Value> result = self->object->GetRealNamedProperty(String::New(PyString_AS_STRING(_item)));
+    Handle<Value> key = unwrap(item);
 
-        Py_DECREF(_item);
+    Handle<Value> result = self->object->GetRealNamedProperty(key.As<String>());
 
-        if(!result.IsEmpty())
-            return wrap(self->context, self->object, result);
-    }
+    if(!result.IsEmpty())
+        return wrap(self->context, self->object, result);
 
     PyErr_SetObject(PyExc_KeyError, item);
 
     return NULL;
 };
+
+extern "C" int ObjectWrapper_setitem(ObjectWrapper *self, PyObject *item, PyObject *value) {
+    using namespace v8;
+
+    HandleScope handle_scope;
+
+    v8::Context::Scope context_scope(self->context);
+
+    Handle<Value> key, js_value;
+
+    try {
+        key = unwrap(item);
+        js_value = unwrap(value);
+    } catch(UnwrapError error) {
+        error.set_exception();
+        return -1;
+    }
+
+    TryCatch trycatch;
+
+    bool ok = self->object->Set(key, js_value);
+
+    if(!ok) {
+        set_exception(trycatch);
+
+        return -1;
+    }
+
+    return 0;
+}
 
 extern "C" PyObject * ObjectWrapper_getattr(ObjectWrapper *self, PyObject *name) {
     using namespace v8;
@@ -134,6 +162,39 @@ extern "C" PyObject * ObjectWrapper_getattr(ObjectWrapper *self, PyObject *name)
     return wrap(self->context, self->object, result);
 };
 
+extern "C" int ObjectWrapper_setattr(ObjectWrapper *self, PyObject *name, PyObject *value) {
+    using namespace v8;
+
+    if(PyObject_GenericSetAttr((PyObject *)self, name, value) == 0)
+        return 0;
+
+    PyErr_Clear();
+
+    HandleScope handle_scope;
+
+    v8::Context::Scope context_scope(self->context);
+
+    TryCatch trycatch;
+
+    bool ok;
+
+    try {
+        ok = self->object->Set(String::New(PyString_AsString(name)), unwrap(value));
+    } catch (UnwrapError error) {
+        error.set_exception();
+
+        return -1;
+    }
+
+    if(!ok) {
+        set_exception(trycatch);
+
+        return -1;
+    }
+
+    return 0;
+};
+
 extern "C" PyObject * FunctionWrapper_call(ObjectWrapper *self, PyObject *args, PyObject *kw) {
     int argc = (int)PySequence_Size(args);
 
@@ -147,20 +208,8 @@ extern "C" PyObject * FunctionWrapper_call(ObjectWrapper *self, PyObject *args, 
         for(int i = 0; i < argc; i++) {
             argv[i] = unwrap(PySequence_GetItem(args, i));
         }
-    } catch (PyObject *bad_object) {
-        PyObject *repr = PyObject_Repr(bad_object);
-
-        const char *repr_string;
-
-        if(repr == NULL) {
-            repr_string = "<unpresentable object>";
-        } else {
-            repr_string = PyString_AS_STRING(repr);
-        }
-
-        PyErr_Format(PyExc_TypeError, "cannot represent %s to javascript", repr_string);
-
-        Py_XDECREF(repr);
+    } catch (UnwrapError error) {
+        error.set_exception();
 
         return NULL;
     }
@@ -305,8 +354,28 @@ v8::Handle<v8::Value> unwrap(PyObject *py) {
         return object;
     }
 
-    throw py;
+    throw UnwrapError(py);
 };
+
+UnwrapError::UnwrapError(PyObject *object) {
+    m_object = object;
+}
+
+void UnwrapError::set_exception() {
+    PyObject *repr = PyObject_Repr(m_object);
+
+    const char *repr_string;
+
+    if(repr == NULL) {
+        repr_string = "<unpresentable object>";
+    } else {
+        repr_string = PyString_AS_STRING(repr);
+    }
+
+    PyErr_Format(PyExc_TypeError, "cannot represent %s to javascript", repr_string);
+
+    Py_XDECREF(repr);
+}
 
 PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value) {
     ObjectWrapper *object;

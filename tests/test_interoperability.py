@@ -34,3 +34,20 @@ def test_pass_back():
     val = func2(func)
 
     assert val == 10
+
+def test_modification():
+    ctx = hemi.Context()
+
+    d = ctx.eval("({1: 2})")
+
+    d.foo = 'bar'
+
+    f = ctx.eval("(function(d, k) { return d[k] })")
+
+    assert f(d, 'foo') == 'bar'
+
+    d['bar'] = 'baz'
+
+    assert f(d, 'bar') == 'baz'
+
+    assert d['bar'] == 'baz'

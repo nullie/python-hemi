@@ -81,11 +81,14 @@ typedef struct {
 
 extern "C" void ObjectWrapper_dealloc(ObjectWrapper *self);
 extern "C" PyObject * ObjectWrapper_getitem(ObjectWrapper *self, PyObject *item);
+extern "C" int ObjectWrapper_setitem(ObjectWrapper *self, PyObject *item, PyObject *value);
 extern "C" PyObject * ObjectWrapper_getattr(ObjectWrapper *self, PyObject *name);
+extern "C" int ObjectWrapper_setattr(ObjectWrapper *self, PyObject *name, PyObject *value);
 
 static PyMappingMethods ObjectWrapper_as_mapping = {
     0,
     (binaryfunc)ObjectWrapper_getitem,
+    (objobjargproc)ObjectWrapper_setitem,
 };
 
 static PyTypeObject ObjectWrapperType = {
@@ -107,7 +110,7 @@ static PyTypeObject ObjectWrapperType = {
     0,                            /* tp_call */
     0,                            /* tp_str */
     (getattrofunc)ObjectWrapper_getattr, /* tp_getattro */
-    0,                            /* tp_setattro */
+    (setattrofunc)ObjectWrapper_setattr, /* tp_setattro */
     0,                            /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT,           /* tp_flags */
     "Javascript object",          /* tp_doc */
@@ -186,6 +189,16 @@ supported_error_type supported_errors[] = {
 void set_exception(v8::TryCatch &trycatch);
 
 v8::Handle<v8::Value> unwrap(PyObject *py);
+
+class UnwrapError {
+protected:
+    PyObject *m_object;
+
+public:
+    UnwrapError(PyObject *object);
+
+    void set_exception();
+};
 
 PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value);
 PyObject * wrap_primitive(v8::Handle<v8::Value> value);
