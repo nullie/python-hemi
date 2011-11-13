@@ -242,7 +242,7 @@ extern "C" int ObjectWrapper_setitem(ObjectWrapper *self, PyObject *item, PyObje
     bool ok;
 
     if(value == NULL) {
-        ok = self->object->Delete(key.As<String>());
+        ok = self->object->Delete(key->ToString());
     } else {
         ok = self->object->Set(key, js_value);
     }
