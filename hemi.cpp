@@ -210,14 +210,17 @@ extern "C" PyObject * ObjectWrapper_getitem(ObjectWrapper *self, PyObject *item)
 
     Handle<Value> key = unwrap(item);
 
-    Handle<Value> result = self->object->GetRealNamedProperty(key.As<String>());
+    TryCatch trycatch;
 
-    if(!result.IsEmpty())
-        return wrap(self->context, self->object, result);
+    Handle<Value> result = self->object->Get(key);
 
-    PyErr_SetObject(PyExc_KeyError, item);
+    if(result.IsEmpty()) {
+        set_exception(trycatch);
 
-    return NULL;
+        return NULL;
+    }
+
+    return wrap(self->context, self->object, result);
 };
 
 extern "C" int ObjectWrapper_setitem(ObjectWrapper *self, PyObject *item, PyObject *value) {
@@ -262,23 +265,9 @@ extern "C" PyObject * ObjectWrapper_getattr(ObjectWrapper *self, PyObject *name)
     if(value != NULL)
         return value;
 
-    char *_name = PyString_AsString(name);
-
-    HandleScope handle_scope;
-
-    Context::Scope context_scope(self->context);
-
-    Handle<Value> result = self->object->GetRealNamedProperty(String::New(_name));
-
-    if(result.IsEmpty()) {
-        // Exception already set by GetAttr
-        return NULL;
-    }
-
-    // Have to reset exception raised by GetAttr
     PyErr_Clear();
 
-    return wrap(self->context, self->object, result);
+    return ObjectWrapper_getitem(self, name);
 };
 
 extern "C" int ObjectWrapper_setattr(ObjectWrapper *self, PyObject *name, PyObject *value) {
@@ -287,33 +276,7 @@ extern "C" int ObjectWrapper_setattr(ObjectWrapper *self, PyObject *name, PyObje
 
     PyErr_Clear();
 
-    HandleScope handle_scope;
-
-    Context::Scope context_scope(self->context);
-
-    TryCatch trycatch;
-
-    bool ok;
-
-    if(value == NULL) {
-        ok = self->object->Delete(String::New(PyString_AsString(name)));
-    } else {
-        try {
-            ok = self->object->Set(String::New(PyString_AsString(name)), unwrap(value));
-        } catch (UnwrapError error) {
-            error.set_exception();
-
-            return -1;
-        }
-    }
-
-    if(!ok) {
-        set_exception(trycatch);
-
-        return -1;
-    }
-
-    return 0;
+    return ObjectWrapper_setitem(self, name, value);
 };
 
 extern "C" PyObject * FunctionWrapper_call(ObjectWrapper *self, PyObject *args, PyObject *kw) {
