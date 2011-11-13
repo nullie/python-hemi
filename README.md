@@ -32,5 +32,4 @@ Bugs
 Todo
 ----
 
-- Javascript exception tracebacks.
 - new operator.

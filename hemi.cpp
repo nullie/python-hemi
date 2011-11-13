@@ -2,6 +2,16 @@
 
 #include "hemi.hpp"
 
+#include <frameobject.h>
+
+const char *builtins = \
+    "Error.stackTraceLimit = Infinity;"
+    "Error.prepareStackTrace = function(error, structuredStackTrace) {"
+    "    return structuredStackTrace.map(function(site) {"
+    "        return [site.getFileName() || '<string>', site.getLineNumber(), site.getFunctionName()]"
+    "    });"
+    "}";
+
 extern "C" void ContextWrapper_dealloc(ContextWrapper* self) {
     self->context.Dispose();
 
@@ -18,7 +28,13 @@ extern "C" PyObject * ContextWrapper_new(PyTypeObject *subtype, PyObject *args, 
             Py_DECREF(self);
             return NULL;
         }
-    }
+
+        HandleScope handle_scope;
+
+        Context::Scope context_scope(self->context);
+
+        Script::Compile(String::New(builtins), String::New("<builtins>"))->Run();
+   }
 
     return (PyObject *)self;
 }
@@ -316,6 +332,71 @@ extern "C" PyObject * FunctionWrapper_call(ObjectWrapper *self, PyObject *args, 
     return wrap(self->context, Handle<Object>(), result);
 };
 
+PyObject * pythonify_stacktrace(Handle<Array> stacktrace) {
+    uint32_t stacktrace_length = stacktrace->Length();
+
+    PyTracebackObject *traceback = NULL, *prev = NULL;
+
+    for(uint32_t i = 0; i < stacktrace_length; i++) {
+        Handle<Array> data = stacktrace->Get(stacktrace_length - 1 - i).As<Array>();
+
+        PyCodeObject *code = PyObject_New(PyCodeObject, &PyCode_Type);
+
+        code->co_argcount = 0;
+        code->co_nlocals = 0;
+        code->co_stacksize = 0;
+        code->co_flags = 0;
+        code->co_code = NULL;
+        code->co_consts = NULL;
+        code->co_names = NULL;
+        code->co_varnames = NULL;
+        code->co_freevars = NULL;
+        code->co_cellvars = NULL;
+        code->co_filename = pythonify_primitive(data->Get(0));
+        code->co_name = pythonify_primitive(data->Get(2));
+        code->co_firstlineno = 0;
+        code->co_lnotab = NULL;
+        code->co_zombieframe = NULL;
+        code->co_weakreflist = NULL;
+
+        PyFrameObject *frame = PyObject_New(PyFrameObject, &PyFrame_Type);
+
+        frame->f_back = NULL;
+        frame->f_code = code;
+        frame->f_builtins = NULL;
+        frame->f_globals = NULL;
+        frame->f_locals = NULL;
+        frame->f_valuestack = NULL;
+        frame->f_stacktop = NULL;
+        frame->f_trace = NULL;
+        frame->f_exc_type = NULL;
+        frame->f_exc_value = NULL;
+        frame->f_exc_traceback = NULL;
+        frame->f_tstate = NULL;
+        frame->f_lasti = 0;
+        frame->f_lineno = 0;
+        frame->f_iblock = 0;
+
+        PyTracebackObject *traceback_frame = PyObject_New(PyTracebackObject, &PyTraceBack_Type);
+
+        traceback_frame->tb_next = NULL;
+        traceback_frame->tb_frame = frame;
+        traceback_frame->tb_lasti = 0;
+        traceback_frame->tb_lineno = data->Get(1)->IntegerValue();
+
+        if(traceback == NULL) {
+            traceback = prev = traceback_frame;
+        } else {
+            prev->tb_next = traceback_frame;
+            prev = traceback_frame;
+        }
+    }
+
+    Py_XINCREF(traceback);
+
+    return (PyObject *)traceback;
+}
+
 void set_exception(TryCatch &trycatch) {
     Handle<Value> exception = trycatch.Exception();
 
@@ -333,6 +414,10 @@ void set_exception(TryCatch &trycatch) {
                 filename = String::New("<string>");
             }
 
+            Handle<Value> stack_trace = trycatch.StackTrace();
+
+            PyObject *traceback = stack_trace->IsArray() ? pythonify_stacktrace(stack_trace.As<Array>()) : NULL;
+
             PyObject *exc_value;
 
             int lineno = message->GetLineNumber();
@@ -349,7 +434,7 @@ void set_exception(TryCatch &trycatch) {
                 exc_value = msg;
             }
 
-            PyErr_SetObject(t->type, exc_value);
+            PyErr_Restore(t->type, exc_value, traceback);
 
             return;
         }
