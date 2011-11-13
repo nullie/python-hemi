@@ -107,7 +107,7 @@ v8::Handle<v8::Value> function_callback(const v8::Arguments &args) {
 
         PyErr_Fetch(&ptype, &pvalue, &ptraceback);
 
-        Py_DECREF(ptraceback);
+        Py_XDECREF(ptraceback);
 
         PyObject *format = PyString_FromString("%s: %s");
 
@@ -115,6 +115,7 @@ v8::Handle<v8::Value> function_callback(const v8::Arguments &args) {
         Py_DECREF(ptype);
 
         PyObject *mm = Py_BuildValue("OO", type_name, pvalue);
+
         Py_XDECREF(pvalue);
 
         Py_DECREF(type_name);
@@ -173,13 +174,14 @@ extern "C" PyObject * Context_Function(Context *self, PyObject *args) {
 
     Handle<Function> function = FunctionTemplate::New(function_callback, External::Wrap(callable))->GetFunction();
 
-    //Py_INCREF(callable);
+    Py_INCREF(callable);
 
-    //Persistent<Function>::New(function).MakeWeak(callable, function_dispose_callback);
+    Persistent<Function>::New(function).MakeWeak(callable, function_dispose_callback);
 
     ObjectWrapper *wrapper = PyObject_New(ObjectWrapper, &FunctionWrapperType);
 
     wrapper->context = Persistent<v8::Context>::New(self->context);
+    wrapper->parent = Persistent<Object>();
     wrapper->object = Persistent<Object>::New(function);
 
     return (PyObject *)wrapper;

@@ -1,6 +1,26 @@
+from datetime import datetime
+
+from nose.tools import raises
+
 import hemi
 
-def test_exception():
+
+@raises(TypeError)
+def test_exception1():
+    source = """
+    function f(a) {
+        return a + 1;
+    }
+    """
+
+    c = hemi.Context()
+
+    c.eval(source)
+
+    c.locals.f(datetime.now())
+
+
+def test_exception2():
     ctx = hemi.Context()
 
     try:
@@ -23,6 +43,7 @@ def test_string_exception():
     except Exception, e:
         assert e.message == "hello"
 
+
 def test_object_exception():
     ctx = hemi.Context()
 
@@ -42,6 +63,7 @@ def test_function_call():
         throw('test')
     }
     """
+
     ctx.eval(source)
 
     try:
@@ -50,3 +72,19 @@ def test_function_call():
         assert False
     except Exception, e:
         assert e.message == 'test'
+
+
+
+def test_python_exception():
+    def callable(this, *args):
+        raise Exception("test")
+
+    ctx = hemi.Context()
+
+    f = ctx.Function(callable)
+
+    try:
+        f()
+        assert False
+    except hemi.Error, e:
+        assert e.message == 'Exception: test'

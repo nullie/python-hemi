@@ -4,20 +4,6 @@ from nose.tools import raises
 
 import hemi
 
-@raises(TypeError)
-def test_exception():
-    source = """
-    function f(a) {
-        return a + 1;
-    }
-    """
-
-    c = hemi.Context()
-
-    c.eval(source)
-
-    c.locals.f(datetime.now())
-
 def test_pass_back():
     ctx = hemi.Context()
 
@@ -34,6 +20,7 @@ def test_pass_back():
     val = func2(func)
 
     assert val == 10
+
 
 def test_modification():
     ctx = hemi.Context()
@@ -74,18 +61,3 @@ def test_function():
     rv = f()
 
     assert rv == 'ok'
-
-
-def test_function_exception():
-    def callable(this, *args):
-        raise Exception("test")
-
-    ctx = hemi.Context()
-
-    f = ctx.Function(callable)
-
-    try:
-        f()
-        assert False
-    except hemi.Error, e:
-        assert e.message == 'Exception: test'
