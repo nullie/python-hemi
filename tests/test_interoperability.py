@@ -59,6 +59,10 @@ def test_object():
 
     del o['qux']
 
+    assert o.qux is hemi.undefined
+
+    assert o['qux'] is hemi.undefined
+
 
 def test_function():
     ctx = hemi.Context()
