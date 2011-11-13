@@ -134,6 +134,7 @@ Handle<Value> FunctionWrapper_callback(const Arguments &args) {
         message = PyUnicode_Format(format, mm);
 
         Py_DECREF(format);
+        Py_DECREF(mm);
 
         exception = Exception::Error(unwrap(message).As<String>());
 
