@@ -2,17 +2,17 @@
 
 #include "hemi.hpp"
 
-extern "C" void Context_dealloc(Context* self) {
+extern "C" void ContextWrapper_dealloc(ContextWrapper* self) {
     self->context.Dispose();
 
     self->ob_type->tp_free((PyObject *)self);
 }
 
-extern "C" PyObject * Context_new(PyTypeObject *subtype, PyObject *args, PyObject *kwds) {
-    Context *self = (Context *)subtype->tp_alloc(subtype, 0);
+extern "C" PyObject * ContextWrapper_new(PyTypeObject *subtype, PyObject *args, PyObject *kwds) {
+    ContextWrapper *self = (ContextWrapper *)subtype->tp_alloc(subtype, 0);
 
     if(self != NULL) {
-        self->context = v8::Context::New();
+        self->context = Context::New();
 
         if(self->context.IsEmpty()) {
             Py_DECREF(self);
@@ -23,7 +23,7 @@ extern "C" PyObject * Context_new(PyTypeObject *subtype, PyObject *args, PyObjec
     return (PyObject *)self;
 }
 
-extern "C" PyObject * Context_eval(Context *self, PyObject *args) {
+extern "C" PyObject * ContextWrapper_eval(ContextWrapper *self, PyObject *args) {
     using namespace v8;
 
     char* _source;
@@ -33,7 +33,7 @@ extern "C" PyObject * Context_eval(Context *self, PyObject *args) {
 
     HandleScope handle_scope;
 
-    v8::Context::Scope context_scope(self->context);
+    Context::Scope context_scope(self->context);
 
     Handle<String> source = String::New(_source);
 
@@ -57,43 +57,39 @@ extern "C" PyObject * Context_eval(Context *self, PyObject *args) {
         return NULL;
     }
 
-    PyObject * py_result = wrap(self->context, Handle<v8::Object>(), result);
+    PyObject *py_result = wrap(self->context, Handle<Object>(), result);
 
     return py_result;
 }
 
-extern "C" PyObject * Context_Object(Context *self, PyObject *args) {
-    using namespace v8;
-
+extern "C" PyObject * ContextWrapper_Object(ContextWrapper *self, PyObject *args) {
     HandleScope handle_scope;
 
-    v8::Context::Scope context_scope(self->context);
+    Context::Scope context_scope(self->context);
 
     Handle<Object> object = Object::New();
 
     ObjectWrapper *wrapper = PyObject_New(ObjectWrapper, &ObjectWrapperType);
 
-    wrapper->context = v8::Persistent<v8::Context>::New(self->context);
-    wrapper->object = v8::Persistent<v8::Object>::New(object);
+    wrapper->context = Persistent<Context>::New(self->context);
+    wrapper->object = Persistent<Object>::New(object);
 
     return (PyObject *)wrapper;
 }
 
-v8::Handle<v8::Value> function_callback(const v8::Arguments &args) {
-    using namespace v8;
-
+Handle<Value> FunctionWrapper_callback(const Arguments &args) {
     PyObject *callback = (PyObject *)External::Unwrap(args.Data());
 
-    Handle<v8::Context> context = v8::Context::GetCurrent();
+    Handle<Context> context = Context::GetCurrent();
 
     int args_length = args.Length();
 
     PyObject *py_args = PyList_New(1 + args_length);
 
-    PyList_SetItem(py_args, 0, wrap(context, v8::Handle<Object>(), args.This()));
+    PyList_SetItem(py_args, 0, wrap(context, Handle<Object>(), args.This()));
 
     for(int i = 0; i < args_length; i++) {
-        PyList_SetItem(py_args, i + 1, wrap(context, v8::Handle<Object>(), args[i]));
+        PyList_SetItem(py_args, i + 1, wrap(context, Handle<Object>(), args[i]));
     }
 
     PyObject *rv = PyObject_Call(callback, py_args, NULL);
@@ -152,13 +148,11 @@ v8::Handle<v8::Value> function_callback(const v8::Arguments &args) {
     return js_rv;
 }
 
-void function_dispose_callback(v8::Persistent<v8::Value> object, void *callback) {
+void FunctionWrapper_dispose(Persistent<Value> object, void *callback) {
     Py_DECREF(callback);
 }
 
-extern "C" PyObject * Context_Function(Context *self, PyObject *args) {
-    using namespace v8;
-
+extern "C" PyObject * ContextWrapper_Function(ContextWrapper *self, PyObject *args) {
     PyObject *callable;
 
     if(!PyArg_ParseTuple(args, "O", &callable))
@@ -170,39 +164,37 @@ extern "C" PyObject * Context_Function(Context *self, PyObject *args) {
 
     HandleScope handle_scope;
 
-    v8::Context::Scope context_scope(self->context);
+    Context::Scope context_scope(self->context);
 
-    Handle<Function> function = FunctionTemplate::New(function_callback, External::Wrap(callable))->GetFunction();
+    Handle<Function> function = FunctionTemplate::New(FunctionWrapper_callback, External::Wrap(callable))->GetFunction();
 
     Py_INCREF(callable);
 
-    Persistent<Function>::New(function).MakeWeak(callable, function_dispose_callback);
+    Persistent<Function>::New(function).MakeWeak(callable, FunctionWrapper_dispose);
 
     ObjectWrapper *wrapper = PyObject_New(ObjectWrapper, &FunctionWrapperType);
 
-    wrapper->context = Persistent<v8::Context>::New(self->context);
+    wrapper->context = Persistent<Context>::New(self->context);
     wrapper->parent = Persistent<Object>();
     wrapper->object = Persistent<Object>::New(function);
 
     return (PyObject *)wrapper;
 }
 
-extern "C" PyObject * Context_getlocals(Context *self, void *closure) {
-    using namespace v8;
-
-    v8::Context::Scope context_scope(self->context);
+extern "C" PyObject * ContextWrapper_getlocals(ContextWrapper *self, void *closure) {
+    Context::Scope context_scope(self->context);
 
     HandleScope handle_scope;
 
     Handle<Value> object(self->context->Global());
 
-    PyObject *wrapped = wrap(self->context, Handle<v8::Object>(), object);
+    PyObject *wrapped = wrap(self->context, Handle<Object>(), object);
 
     return wrapped;
 }
 
 extern "C" void ObjectWrapper_dealloc(ObjectWrapper* self) {
-    v8::HandleScope handle_scope;
+    HandleScope handle_scope;
 
     self->object.Dispose();
     self->parent.Dispose();
@@ -212,11 +204,9 @@ extern "C" void ObjectWrapper_dealloc(ObjectWrapper* self) {
 }
 
 extern "C" PyObject * ObjectWrapper_getitem(ObjectWrapper *self, PyObject *item) {
-    using namespace v8;
-
     HandleScope handle_scope;
 
-    v8::Context::Scope context_scope(self->context);
+    Context::Scope context_scope(self->context);
 
     Handle<Value> key = unwrap(item);
 
@@ -231,11 +221,9 @@ extern "C" PyObject * ObjectWrapper_getitem(ObjectWrapper *self, PyObject *item)
 };
 
 extern "C" int ObjectWrapper_setitem(ObjectWrapper *self, PyObject *item, PyObject *value) {
-    using namespace v8;
-
     HandleScope handle_scope;
 
-    v8::Context::Scope context_scope(self->context);
+    Context::Scope context_scope(self->context);
 
     Handle<Value> key, js_value;
 
@@ -261,8 +249,6 @@ extern "C" int ObjectWrapper_setitem(ObjectWrapper *self, PyObject *item, PyObje
 }
 
 extern "C" PyObject * ObjectWrapper_getattr(ObjectWrapper *self, PyObject *name) {
-    using namespace v8;
-
     PyObject *value = PyObject_GenericGetAttr((PyObject *)self, name);
 
     if(value != NULL)
@@ -272,7 +258,7 @@ extern "C" PyObject * ObjectWrapper_getattr(ObjectWrapper *self, PyObject *name)
 
     HandleScope handle_scope;
 
-    v8::Context::Scope context_scope(self->context);
+    Context::Scope context_scope(self->context);
 
     Handle<Value> result = self->object->GetRealNamedProperty(String::New(_name));
 
@@ -288,8 +274,6 @@ extern "C" PyObject * ObjectWrapper_getattr(ObjectWrapper *self, PyObject *name)
 };
 
 extern "C" int ObjectWrapper_setattr(ObjectWrapper *self, PyObject *name, PyObject *value) {
-    using namespace v8;
-
     if(PyObject_GenericSetAttr((PyObject *)self, name, value) == 0)
         return 0;
 
@@ -297,7 +281,7 @@ extern "C" int ObjectWrapper_setattr(ObjectWrapper *self, PyObject *name, PyObje
 
     HandleScope handle_scope;
 
-    v8::Context::Scope context_scope(self->context);
+    Context::Scope context_scope(self->context);
 
     TryCatch trycatch;
 
@@ -323,11 +307,11 @@ extern "C" int ObjectWrapper_setattr(ObjectWrapper *self, PyObject *name, PyObje
 extern "C" PyObject * FunctionWrapper_call(ObjectWrapper *self, PyObject *args, PyObject *kw) {
     int argc = (int)PySequence_Size(args);
 
-    v8::HandleScope handle_scope;
+    HandleScope handle_scope;
 
-    v8::Context::Scope context_scope(self->context);
+    Context::Scope context_scope(self->context);
 
-    v8::Handle<v8::Value> argv[argc];
+    Handle<Value> argv[argc];
 
     try {
         for(int i = 0; i < argc; i++) {
@@ -339,14 +323,14 @@ extern "C" PyObject * FunctionWrapper_call(ObjectWrapper *self, PyObject *args, 
         return NULL;
     }
 
-    v8::TryCatch trycatch;
+    TryCatch trycatch;
 
-    v8::Handle<v8::Object> recv = self->parent;
+    Handle<Object> recv = self->parent;
 
     if(recv.IsEmpty())
         recv = self->context->Global();
 
-    v8::Handle<v8::Value> result = self->object.As<v8::Function>()->Call(recv, argc, argv);
+    Handle<Value> result = self->object.As<Function>()->Call(recv, argc, argv);
 
     if(result.IsEmpty()) {
         set_exception(trycatch);
@@ -354,12 +338,10 @@ extern "C" PyObject * FunctionWrapper_call(ObjectWrapper *self, PyObject *args, 
         return NULL;
     }
 
-    return wrap(self->context, v8::Handle<v8::Object>(), result);
+    return wrap(self->context, Handle<Object>(), result);
 };
 
-void set_exception(v8::TryCatch &trycatch) {
-    using namespace v8;
-
+void set_exception(TryCatch &trycatch) {
     Handle<Value> exception = trycatch.Exception();
 
     String::AsciiValue name(exception.As<Object>()->GetConstructorName());
@@ -368,7 +350,7 @@ void set_exception(v8::TryCatch &trycatch) {
         if(strcmp(*name, t->name) == 0) {
             Handle<Message> message = trycatch.Message();
 
-            PyObject *msg = wrap_primitive(exception.As<Object>()->Get(String::New("message")));
+            PyObject *msg = pythonify_primitive(exception.As<Object>()->Get(String::New("message")));
 
             Handle<Value> filename = message->GetScriptResourceName();
 
@@ -383,9 +365,9 @@ void set_exception(v8::TryCatch &trycatch) {
             if(lineno) {
                 int offset = message->GetEndColumn();
 
-                PyObject *py_filename = wrap_primitive(filename);
+                PyObject *py_filename = pythonify_primitive(filename);
 
-                PyObject *text = wrap_primitive(message->GetSourceLine());
+                PyObject *text = pythonify_primitive(message->GetSourceLine());
 
                 exc_value = Py_BuildValue("N(NiiN)", msg, py_filename, lineno, offset, text);
             } else {
@@ -398,41 +380,41 @@ void set_exception(v8::TryCatch &trycatch) {
         }
     }
 
-    PyErr_SetObject(PyExc_Exception, wrap(v8::Context::GetCurrent(), Handle<Object>(), exception));
+    PyErr_SetObject(PyExc_Exception, wrap(Context::GetCurrent(), Handle<Object>(), exception));
 }
 
-v8::Handle<v8::Value> unwrap(PyObject *py) {
+Handle<Value> unwrap(PyObject *py) {
     if(py == Py_True)
-        return v8::True();
+        return True();
 
     if(py == Py_False)
-        return v8::False();
+        return False();
 
     if(py == Py_None)
-        return v8::Null();
+        return Null();
 
     if(PyInt_Check(py)) {
         long value = PyInt_AS_LONG(py);
 
         if(sizeof(long) == sizeof(int32_t)) {
-            return v8::Integer::New(value);
+            return Integer::New(value);
         } else {
             if(-value < 1ll << 16 && value < 1ll << 16)
-                return v8::Integer::New(value);
+                return Integer::New(value);
 
             if(value > 0ll && value < 1ll << 32)
-                return v8::Integer::NewFromUnsigned(value);
+                return Integer::NewFromUnsigned(value);
         }
     }
 
     if(PyFloat_Check(py))
-        return v8::Number::New(PyFloat_AS_DOUBLE(py));
+        return Number::New(PyFloat_AS_DOUBLE(py));
 
     if(PyString_Check(py)) {
         PyObject *unicode = PyUnicode_FromObject(py);
         PyObject *py_string = PyUnicode_AsUTF8String(unicode);
 
-        v8::Handle<v8::String> js_string = v8::String::New(PyString_AS_STRING(py_string));
+        Handle<String> js_string = String::New(PyString_AS_STRING(py_string));
 
         Py_DECREF(py_string);
         Py_DECREF(unicode);
@@ -443,7 +425,7 @@ v8::Handle<v8::Value> unwrap(PyObject *py) {
     if(PyUnicode_Check(py)) {
         PyObject *py_string = PyUnicode_AsUTF8String(py);
 
-        v8::Handle<v8::String> js_string = v8::String::New(PyString_AS_STRING(py_string));
+        Handle<String> js_string = String::New(PyString_AS_STRING(py_string));
 
         Py_DECREF(py_string);
 
@@ -459,10 +441,10 @@ v8::Handle<v8::Value> unwrap(PyObject *py) {
     if(PyList_Check(py)) {
         uint32_t length = PyList_GET_SIZE(py);
 
-        v8::Handle<v8::Array> array = v8::Array::New(length);
+        Handle<Array> array = Array::New(length);
 
         for(uint32_t i = 0; i < length; i++) {
-            v8::Handle<v8::Value> item = unwrap(PyList_GET_ITEM(py, i));
+            Handle<Value> item = unwrap(PyList_GET_ITEM(py, i));
 
             array->Set(i, item);
         }
@@ -474,10 +456,10 @@ v8::Handle<v8::Value> unwrap(PyObject *py) {
         PyObject *key, *value;
         Py_ssize_t pos = 0;
 
-        v8::Handle<v8::Object> object = v8::Object::New();
+        Handle<Object> object = Object::New();
 
         while(PyDict_Next(py, &pos, &key, &value)) {
-            v8::Handle<v8::Value> js_key = unwrap(key);
+            Handle<Value> js_key = unwrap(key);
 
             object->Set(js_key, unwrap(value));
         }
@@ -514,10 +496,10 @@ PyObject * UnwrapError::get_message() {
     return error;
 }
 
-PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value) {
+PyObject * wrap(Handle<Context> context, Handle<Object> parent, Handle<Value> value) {
     ObjectWrapper *object;
 
-    object = (ObjectWrapper *)wrap_primitive(value);
+    object = (ObjectWrapper *)pythonify_primitive(value);
 
     if(object != NULL)
         return (PyObject *)object;
@@ -528,14 +510,14 @@ PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, 
         object = PyObject_New(ObjectWrapper, &ObjectWrapperType);
     }
 
-    object->context = v8::Persistent<v8::Context>::New(context);
-    object->parent = v8::Persistent<v8::Object>::New(parent);
-    object->object = v8::Persistent<v8::Object>::New(value.As<v8::Object>());
+    object->context = Persistent<Context>::New(context);
+    object->parent = Persistent<Object>::New(parent);
+    object->object = Persistent<Object>::New(value.As<Object>());
 
     return (PyObject *)object;
 }
 
-PyObject * wrap_primitive(v8::Handle<v8::Value> value) {
+PyObject * pythonify_primitive(Handle<Value> value) {
     if(value->IsInt32())
         return PyInt_FromLong(value->Int32Value());
 
@@ -549,24 +531,22 @@ PyObject * wrap_primitive(v8::Handle<v8::Value> value) {
         Py_RETURN_NONE;
 
     if(value->IsUndefined()) {
-        return Py_INCREF(Undefined), Undefined;
+        return Py_INCREF(PyUndefined), PyUndefined;
     }
 
     if(value->IsString()) {
-        v8::String::Utf8Value string(value);
+        String::Utf8Value string(value);
         return PyUnicode_DecodeUTF8(*string, string.length(), NULL);
     }
 
     return NULL;
 }
 
-PyObject * _pythonify(v8::Handle<v8::Value> value) {
-    using namespace v8;
-
+PyObject * pythonify(Handle<Value> value) {
     uint32_t i;
     PyObject *py_value;
 
-    PyObject *object = wrap_primitive(value);
+    PyObject *object = pythonify_primitive(value);
 
     if(object)
         return object;
@@ -581,7 +561,7 @@ PyObject * _pythonify(v8::Handle<v8::Value> value) {
             return NULL;
 
         for(i = 0; i < array_length; i++) {
-            py_value = _pythonify(array->Get(i));
+            py_value = pythonify(array->Get(i));
 
             if(py_value == NULL) {
                 Py_DECREF(object);
@@ -609,14 +589,14 @@ PyObject * _pythonify(v8::Handle<v8::Value> value) {
             Handle<Value> name = properties->Get(i);
             Handle<Value> value = js_object->Get(name);
 
-            PyObject *py_key = _pythonify(name);
+            PyObject *py_key = pythonify(name);
 
             if(py_key == NULL) {
                 Py_DECREF(object);
                 return NULL;
             }
 
-            py_value = _pythonify(value);
+            py_value = pythonify(value);
 
             if(py_value == NULL) {
                 Py_DECREF(object);
@@ -638,20 +618,20 @@ PyObject * _pythonify(v8::Handle<v8::Value> value) {
     }
 }
 
-extern "C" PyObject * pythonify(PyObject *self, PyObject *args) {
+extern "C" PyObject * Hemi_pythonify(PyObject *self, PyObject *args) {
     PyObject *object;
 
     if(!PyArg_ParseTuple(args, "O", &object))
         return NULL;
 
     if(PyObject_IsInstance(object, (PyObject *)&ObjectWrapperType)) {
-        v8::HandleScope handle_scope;
+        HandleScope handle_scope;
 
         ObjectWrapper *wrapper = (ObjectWrapper *)object;
 
-        v8::Context::Scope context_scope(wrapper->context);
+        Context::Scope context_scope(wrapper->context);
 
-        object = _pythonify(wrapper->object);
+        object = pythonify(wrapper->object);
     }
 
     return object;
@@ -665,7 +645,7 @@ inithemi(void)
 {
     PyObject* m;
 
-    if (PyType_Ready(&ContextType) < 0)
+    if (PyType_Ready(&ContextWrapperType) < 0)
         return;
 
     if (PyType_Ready(&ObjectWrapperType) < 0)
@@ -679,15 +659,19 @@ inithemi(void)
     if (PyType_Ready(&UndefinedType) < 0)
         return;
 
-    Undefined = PyObject_New(PyObject, &UndefinedType);
+    PyUndefined = PyObject_New(PyObject, &UndefinedType);
 
     m = Py_InitModule3("hemi", module_methods,
                        "Lightweight V8 wrapper.");
 
-    Py_INCREF(&ContextType);
-    PyModule_AddObject(m, "Context", (PyObject *)&ContextType);
+    Py_INCREF(&ContextWrapperType);
+    PyModule_AddObject(m, "Context", (PyObject *)&ContextWrapperType);
+
+    Py_INCREF(PyUndefined);
+    PyModule_AddObject(m, "undefined", PyUndefined);
 
     for(supported_error_type *t = supported_errors; t->name; t++) {
+        Py_INCREF(t->type);
         PyModule_AddObject(m, t->name, t->type);
     }
 }

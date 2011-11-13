@@ -3,47 +3,49 @@
 #include <Python.h>
 #include <v8.h>
 
+using namespace v8;
+
 typedef struct {
     PyObject_HEAD
     /* Type-specific fields go here. */
     v8::Persistent<v8::Context> context;
-} Context;
+} ContextWrapper;
 
-extern "C" PyObject * Context_new(PyTypeObject *subtype, PyObject *args, PyObject *kwds);
-extern "C" void Context_dealloc(Context *self);
-extern "C" PyObject * Context_eval(Context *self, PyObject *args);
-extern "C" PyObject * Context_Object(Context *self, PyObject *args);
-extern "C" PyObject * Context_Function(Context *self, PyObject *args);
-extern "C" PyObject * Context_getlocals(Context *self, void *closure);
+extern "C" PyObject * ContextWrapper_new(PyTypeObject *subtype, PyObject *args, PyObject *kwds);
+extern "C" void ContextWrapper_dealloc(ContextWrapper *self);
+extern "C" PyObject * ContextWrapper_eval(ContextWrapper *self, PyObject *args);
+extern "C" PyObject * ContextWrapper_Object(ContextWrapper *self, PyObject *args);
+extern "C" PyObject * ContextWrapper_Function(ContextWrapper *self, PyObject *args);
+extern "C" PyObject * ContextWrapper_getlocals(ContextWrapper *self, void *closure);
 
-static PyMethodDef Context_methods[] = {
-    {(char *)"eval", (PyCFunction)Context_eval, METH_VARARGS,
+static PyMethodDef ContextWrapper_methods[] = {
+    {(char *)"eval", (PyCFunction)ContextWrapper_eval, METH_VARARGS,
      (char *)"Eval source in context"
     },
-    {(char *)"Object", (PyCFunction)Context_Object, METH_NOARGS,
+    {(char *)"Object", (PyCFunction)ContextWrapper_Object, METH_NOARGS,
      (char *)"Create Javascript object"
     },
-    {(char *)"Function", (PyCFunction)Context_Function, METH_VARARGS,
+    {(char *)"Function", (PyCFunction)ContextWrapper_Function, METH_VARARGS,
      (char *)"Create Javascript function"
     },
     {NULL} /* Sentinel */
 };
 
-static PyGetSetDef Context_getseters[] = {
+static PyGetSetDef ContextWrapper_getseters[] = {
     {(char *)"locals",
-     (getter)Context_getlocals, NULL,
+     (getter)ContextWrapper_getlocals, NULL,
      (char *)"Context locals",
      NULL},
     {NULL} /* Sentinel */
 };
 
-static PyTypeObject ContextType = {
+static PyTypeObject ContextWrapperType = {
     PyObject_HEAD_INIT(NULL)
     0,                             /* ob_size */
     "hemi.Context",                /* tp_name */
-    sizeof(Context),               /* tp_basicsize */
+    sizeof(ContextWrapper),               /* tp_basicsize */
     0,                             /* tp_itemsize */
-    (destructor)Context_dealloc,   /* tp_dealloc */
+    (destructor)ContextWrapper_dealloc,   /* tp_dealloc */
     0,                             /* tp_print */
     0,                             /* tp_getattr */
     0,                             /* tp_setattr */
@@ -66,9 +68,9 @@ static PyTypeObject ContextType = {
     0,		                       /* tp_weaklistoffset */
     0,		                       /* tp_iter */
     0,		                       /* tp_iternext */
-    Context_methods,               /* tp_methods */
+    ContextWrapper_methods,               /* tp_methods */
     0,                             /* tp_members */
-    Context_getseters,             /* tp_getset */
+    ContextWrapper_getseters,             /* tp_getset */
     0,                             /* tp_base */
     0,                             /* tp_dict */
     0,                             /* tp_descr_get */
@@ -76,15 +78,15 @@ static PyTypeObject ContextType = {
     0,                             /* tp_dictoffset */
     0,                             /* tp_init */
     0,                             /* tp_alloc */
-    Context_new,                   /* tp_new */
+    ContextWrapper_new,                   /* tp_new */
 };
 
 typedef struct {
     PyObject_HEAD
     /* Type-specific fields go here. */
-    v8::Persistent<v8::Context> context;
-    v8::Persistent<v8::Object> parent;
-    v8::Persistent<v8::Object> object;
+    Persistent<Context> context;
+    Persistent<Object> parent;
+    Persistent<Object> object;
 } ObjectWrapper;
 
 extern "C" void ObjectWrapper_dealloc(ObjectWrapper *self);
@@ -154,7 +156,7 @@ static PyTypeObject FunctionWrapperType = {
 static PyTypeObject UndefinedType = {
     PyObject_HEAD_INIT(NULL)
     0,                            /* ob_size */
-    "hemi.Undefined",             /* tp_name */
+    "hemi.undefined",             /* tp_name */
     sizeof(PyObject),             /* tp_basicsize */
     0,                            /* tp_itemsize */
     0,                            /* tp_dealloc */
@@ -176,7 +178,7 @@ static PyTypeObject UndefinedType = {
     "Javascript undefined",      /* tp_doc */
 };
 
-PyObject *Undefined;
+PyObject *PyUndefined;
 
 typedef struct {
     const char *name;
@@ -194,9 +196,7 @@ supported_error_type supported_errors[] = {
     {NULL} /* Sentinel */
 };
 
-void set_exception(v8::TryCatch &trycatch);
-
-v8::Handle<v8::Value> unwrap(PyObject *py);
+void set_exception(TryCatch &trycatch);
 
 class UnwrapError {
 protected:
@@ -208,13 +208,15 @@ public:
     PyObject * get_message();
 };
 
-PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value);
-PyObject * wrap_primitive(v8::Handle<v8::Value> value);
+Handle<Value> unwrap(PyObject *py);
 
-extern "C" PyObject * pythonify(PyObject *self, PyObject *args);
+PyObject * wrap(Handle<Context> context, Handle<Object> parent, Handle<Value> value);
+PyObject * pythonify_primitive(Handle<Value> value);
+
+extern "C" PyObject * Hemi_pythonify(PyObject *self, PyObject *args);
 
 static PyMethodDef module_methods[] = {
-    {(char *)"pythonify", (PyCFunction)pythonify, METH_VARARGS,
+    {(char *)"pythonify", (PyCFunction)Hemi_pythonify, METH_VARARGS,
      (char *)"Recursively turn wrapped Javascript objects into lists and dicts"
     },
     {NULL}  /* Sentinel */
