@@ -188,7 +188,7 @@ typedef struct {
 PyObject *Error = PyErr_NewException((char *)"hemi.Error", PyExc_SyntaxError, NULL);
 
 supported_error_type supported_errors[] = {
-    {"Error", Error, NULL, NULL},
+    {"Error", Error},
     {"TypeError", PyErr_NewException((char *)"hemi.TypeError", Error, NULL)},
     {"RangeError", PyErr_NewException((char *)"hemi.RangeError", Error, NULL)},
     {"SyntaxError", PyErr_NewException((char *)"hemi.SyntaxError", Error, NULL)},
