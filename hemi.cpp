@@ -229,7 +229,9 @@ extern "C" int ObjectWrapper_setitem(ObjectWrapper *self, PyObject *item, PyObje
 
     try {
         key = unwrap(item);
-        js_value = unwrap(value);
+
+        if(value)
+            js_value = unwrap(value);
     } catch(UnwrapError error) {
         error.set_exception();
         return -1;
@@ -237,7 +239,13 @@ extern "C" int ObjectWrapper_setitem(ObjectWrapper *self, PyObject *item, PyObje
 
     TryCatch trycatch;
 
-    bool ok = self->object->Set(key, js_value);
+    bool ok;
+
+    if(value == NULL) {
+        ok = self->object->Delete(key.As<String>());
+    } else {
+        ok = self->object->Set(key, js_value);
+    }
 
     if(!ok) {
         set_exception(trycatch);
@@ -287,12 +295,16 @@ extern "C" int ObjectWrapper_setattr(ObjectWrapper *self, PyObject *name, PyObje
 
     bool ok;
 
-    try {
-        ok = self->object->Set(String::New(PyString_AsString(name)), unwrap(value));
-    } catch (UnwrapError error) {
-        error.set_exception();
+    if(value == NULL) {
+        ok = self->object->Delete(String::New(PyString_AsString(name)));
+    } else {
+        try {
+            ok = self->object->Set(String::New(PyString_AsString(name)), unwrap(value));
+        } catch (UnwrapError error) {
+            error.set_exception();
 
-        return -1;
+            return -1;
+        }
     }
 
     if(!ok) {

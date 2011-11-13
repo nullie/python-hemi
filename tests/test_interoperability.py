@@ -49,6 +49,16 @@ def test_object():
 
     assert o.foo == 'bar'
 
+    del o.foo
+
+    del o.qux
+
+    o['bar'] = 'baz'
+
+    del o['bar']
+
+    del o['qux']
+
 
 def test_function():
     ctx = hemi.Context()
