@@ -20,7 +20,7 @@ static PyMethodDef Context_methods[] = {
     {(char *)"eval", (PyCFunction)Context_eval, METH_VARARGS,
      (char *)"Eval source in context"
     },
-    {(char *)"Object", (PyCFunction)Context_Object, METH_VARARGS,
+    {(char *)"Object", (PyCFunction)Context_Object, METH_NOARGS,
      (char *)"Create Javascript object"
     },
     {(char *)"Function", (PyCFunction)Context_Function, METH_VARARGS,
@@ -201,11 +201,11 @@ v8::Handle<v8::Value> unwrap(PyObject *py);
 class UnwrapError {
 protected:
     PyObject *m_object;
-
 public:
     UnwrapError(PyObject *object);
 
     void set_exception();
+    PyObject * get_message();
 };
 
 PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value);

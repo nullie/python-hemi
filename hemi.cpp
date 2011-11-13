@@ -69,15 +69,120 @@ extern "C" PyObject * Context_Object(Context *self, PyObject *args) {
 
     v8::Context::Scope context_scope(self->context);
 
-    Handle<Value> object = Object::New();
+    Handle<Object> object = Object::New();
 
-    PyObject *result = wrap(self->context, v8::Handle<Object>(), object);
+    ObjectWrapper *wrapper = PyObject_New(ObjectWrapper, &ObjectWrapperType);
 
-    return result;
+    wrapper->context = v8::Persistent<v8::Context>::New(self->context);
+    wrapper->object = v8::Persistent<v8::Object>::New(object);
+
+    return (PyObject *)wrapper;
+}
+
+v8::Handle<v8::Value> function_callback(const v8::Arguments &args) {
+    using namespace v8;
+
+    PyObject *callback = (PyObject *)External::Unwrap(args.Data());
+
+    Handle<v8::Context> context = v8::Context::GetCurrent();
+
+    int args_length = args.Length();
+
+    PyObject *py_args = PyList_New(1 + args_length);
+
+    PyList_SetItem(py_args, 0, wrap(context, v8::Handle<Object>(), args.This()));
+
+    for(int i = 0; i < args_length; i++) {
+        PyList_SetItem(py_args, i + 1, wrap(context, v8::Handle<Object>(), args[i]));
+    }
+
+    PyObject *rv = PyObject_Call(callback, py_args, NULL);
+
+    PyObject *message;
+    Handle<String> js_message;
+    Handle<Value> exception;
+
+    if(rv == NULL) {
+        PyObject *ptype, *pvalue, *ptraceback;
+
+        PyErr_Fetch(&ptype, &pvalue, &ptraceback);
+
+        Py_DECREF(ptraceback);
+
+        PyObject *format = PyString_FromString("%s: %s");
+
+        PyObject *type_name = PyObject_GetAttrString(ptype, "__name__");
+        Py_DECREF(ptype);
+
+        PyObject *mm = Py_BuildValue("OO", type_name, pvalue);
+        Py_XDECREF(pvalue);
+
+        Py_DECREF(type_name);
+
+        message = PyUnicode_Format(format, mm);
+
+        Py_DECREF(format);
+
+        exception = Exception::Error(unwrap(message).As<String>());
+
+        Py_DECREF(message);
+
+        ThrowException(exception);
+
+        return Handle<Value>();
+    }
+
+    Handle<Value> js_rv;
+
+    try {
+        js_rv = unwrap(rv);
+    } catch(UnwrapError error) {
+        message = error.get_message();
+
+        exception = Exception::TypeError(unwrap(message).As<String>());
+
+        Py_DECREF(message);
+
+        ThrowException(exception);
+
+        return Handle<Value>();
+    }
+
+    return js_rv;
+}
+
+void function_dispose_callback(v8::Persistent<v8::Value> object, void *callback) {
+    Py_DECREF(callback);
 }
 
 extern "C" PyObject * Context_Function(Context *self, PyObject *args) {
-    return NULL;
+    using namespace v8;
+
+    PyObject *callable;
+
+    if(!PyArg_ParseTuple(args, "O", &callable))
+        return NULL;
+
+    if(!PyCallable_Check(callable)) {
+        return NULL;
+    }
+
+    HandleScope handle_scope;
+
+    v8::Context::Scope context_scope(self->context);
+
+    Handle<Function> function = FunctionTemplate::New(function_callback, External::Wrap(callable))->GetFunction();
+
+    //Py_INCREF(callable);
+
+    //Persistent<Function>::New(function).MakeWeak(callable, function_dispose_callback);
+
+    ObjectWrapper *wrapper = PyObject_New(ObjectWrapper, &FunctionWrapperType);
+
+    wrapper->context = Persistent<v8::Context>::New(self->context);
+    wrapper->object = Persistent<Object>::New(function);
+
+    return (PyObject *)wrapper;
 }
 
 extern "C" PyObject * Context_getlocals(Context *self, void *closure) {
@@ -237,7 +342,7 @@ extern "C" PyObject * FunctionWrapper_call(ObjectWrapper *self, PyObject *args, 
     v8::Handle<v8::Object> recv = self->parent;
 
     if(recv.IsEmpty())
-        recv = v8::Undefined().As<v8::Object>();
+        recv = self->context->Global();
 
     v8::Handle<v8::Value> result = self->object.As<v8::Function>()->Call(recv, argc, argv);
 
@@ -269,15 +374,21 @@ void set_exception(v8::TryCatch &trycatch) {
                 filename = String::New("<string>");
             }
 
-            PyObject *py_filename = wrap_primitive(filename);
+            PyObject *exc_value;
 
             int lineno = message->GetLineNumber();
 
-            int offset = message->GetEndColumn();
+            if(lineno) {
+                int offset = message->GetEndColumn();
 
-            PyObject *text = wrap_primitive(message->GetSourceLine());
+                PyObject *py_filename = wrap_primitive(filename);
 
-            PyObject *exc_value = Py_BuildValue("N(NiiN)", msg, py_filename, lineno, offset, text);
+                PyObject *text = wrap_primitive(message->GetSourceLine());
+
+                exc_value = Py_BuildValue("N(NiiN)", msg, py_filename, lineno, offset, text);
+            } else {
+                exc_value = msg;
+            }
 
             PyErr_SetObject(t->type, exc_value);
 
@@ -380,19 +491,25 @@ UnwrapError::UnwrapError(PyObject *object) {
 }
 
 void UnwrapError::set_exception() {
+    PyObject *message = get_message();
+
+    PyErr_SetObject(PyExc_TypeError, message);
+
+    Py_DECREF(message);
+}
+
+PyObject * UnwrapError::get_message() {
     PyObject *repr = PyObject_Repr(m_object);
 
-    const char *repr_string;
-
     if(repr == NULL) {
-        repr_string = "<unpresentable object>";
-    } else {
-        repr_string = PyString_AS_STRING(repr);
+        repr = PyString_FromString("<unpresentable object>");
     }
 
-    PyErr_Format(PyExc_TypeError, "cannot represent %s to javascript", repr_string);
+    PyObject *error = PyString_FromFormat("cannot represent %s to javascript", PyString_AS_STRING(repr));
 
-    Py_XDECREF(repr);
+    Py_DECREF(repr);
+
+    return error;
 }
 
 PyObject * wrap(v8::Handle<v8::Context> context, v8::Handle<v8::Object> parent, v8::Handle<v8::Value> value) {

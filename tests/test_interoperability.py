@@ -66,6 +66,26 @@ def test_object():
 def test_function():
     ctx = hemi.Context()
 
-    f = ctx.Function()
+    def callable(this, *args):
+        return 'ok'
 
-    f()
+    f = ctx.Function(callable)
+
+    rv = f()
+
+    assert rv == 'ok'
+
+
+def test_function_exception():
+    def callable(this, *args):
+        raise Exception("test")
+
+    ctx = hemi.Context()
+
+    f = ctx.Function(callable)
+
+    try:
+        f()
+        assert False
+    except hemi.Error, e:
+        assert e.message == 'Exception: test'

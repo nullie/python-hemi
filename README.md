@@ -33,5 +33,4 @@ Todo
 ----
 
 - Javascript exception tracebacks.
-- Wrapping Python functions into Javascript.
 - new operator.
