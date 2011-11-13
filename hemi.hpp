@@ -188,11 +188,13 @@ typedef struct {
 PyObject *Error = PyErr_NewException((char *)"hemi.Error", PyExc_SyntaxError, NULL);
 
 supported_error_type supported_errors[] = {
-    {"Error", Error},
-    {"RangeError", PyErr_NewException((char *)"hemi.RangeError", Error, NULL)},
-    {"ReferenceError", PyErr_NewException((char *)"hemi.ReferenceError", Error, NULL)},
-    {"SyntaxError", PyErr_NewException((char *)"hemi.SyntaxError", Error, NULL)},
+    {"Error", Error, NULL, NULL},
     {"TypeError", PyErr_NewException((char *)"hemi.TypeError", Error, NULL)},
+    {"RangeError", PyErr_NewException((char *)"hemi.RangeError", Error, NULL)},
+    {"SyntaxError", PyErr_NewException((char *)"hemi.SyntaxError", Error, NULL)},
+    {"ReferenceError", PyErr_NewException((char *)"hemi.ReferenceError", Error, NULL)},
+    {"EvalError", PyErr_NewException((char *)"hemi.EvalError", Error, NULL)},
+    {"URIError", PyErr_NewException((char *)"hemi.URIError", Error, NULL)},
     {NULL} /* Sentinel */
 };
 
