@@ -94,7 +94,7 @@ extern "C" PyObject * ContextWrapper_Object(ContextWrapper *self, PyObject *args
 }
 
 Handle<Value> FunctionWrapper_callback(const Arguments &args) {
-    PyObject *callback = (PyObject *)External::Unwrap(args.Data());
+    PyObject *callback = unwrap_pyobject(args.Data());
 
     Handle<Context> context = Context::GetCurrent();
 
@@ -119,18 +119,17 @@ Handle<Value> FunctionWrapper_callback(const Arguments &args) {
 
         PyErr_Fetch(&ptype, &pvalue, &ptraceback);
 
+        PyErr_Clear();
+
         Py_XDECREF(ptraceback);
 
         PyObject *format = PyString_FromString("%s: %s");
 
         PyObject *type_name = PyObject_GetAttrString(ptype, "__name__");
+
         Py_DECREF(ptype);
 
-        PyObject *mm = Py_BuildValue("OO", type_name, pvalue);
-
-        Py_XDECREF(pvalue);
-
-        Py_DECREF(type_name);
+        PyObject *mm = Py_BuildValue("NN", type_name, pvalue);
 
         message = PyUnicode_Format(format, mm);
 
@@ -139,6 +138,8 @@ Handle<Value> FunctionWrapper_callback(const Arguments &args) {
         exception = Exception::Error(unwrap(message).As<String>());
 
         Py_DECREF(message);
+
+        //exception.As<Object>()->SetHiddenValue(String::New("hemi::exc_info"), wrap_pyobject(exc_info));
 
         ThrowException(exception);
 
@@ -164,10 +165,6 @@ Handle<Value> FunctionWrapper_callback(const Arguments &args) {
     return js_rv;
 }
 
-void FunctionWrapper_dispose(Persistent<Value> object, void *callback) {
-    Py_DECREF(callback);
-}
-
 extern "C" PyObject * ContextWrapper_Function(ContextWrapper *self, PyObject *args) {
     PyObject *callable;
 
@@ -182,11 +179,7 @@ extern "C" PyObject * ContextWrapper_Function(ContextWrapper *self, PyObject *ar
 
     Context::Scope context_scope(self->context);
 
-    Handle<Function> function = FunctionTemplate::New(FunctionWrapper_callback, External::Wrap(callable))->GetFunction();
-
-    Py_INCREF(callable);
-
-    Persistent<Function>::New(function).MakeWeak(callable, FunctionWrapper_dispose);
+    Handle<Function> function = FunctionTemplate::New(FunctionWrapper_callback, wrap_pyobject(callable))->GetFunction();
 
     ObjectWrapper *wrapper = PyObject_New(ObjectWrapper, &FunctionWrapperType);
 
@@ -600,6 +593,24 @@ PyObject * pythonify_primitive(Handle<Value> value) {
     }
 
     return NULL;
+}
+
+void dispose_reference(Persistent<Value> object, void *o) {
+    Py_DECREF(o);
+}
+
+Handle<Value> wrap_pyobject(PyObject *o) {
+    Py_INCREF(o);
+
+    Handle<Value> value = External::Wrap(o);
+
+    Persistent<Value>::New(value).MakeWeak(o, dispose_reference);
+
+    return value;
+}
+
+PyObject * unwrap_pyobject(Handle<Value> value) {
+    return (PyObject *)External::Unwrap(value);
 }
 
 PyObject * pythonify(Handle<Value> value) {

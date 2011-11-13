@@ -215,6 +215,9 @@ Handle<Value> unwrap(PyObject *py);
 PyObject * wrap(Handle<Context> context, Handle<Object> parent, Handle<Value> value);
 PyObject * pythonify_primitive(Handle<Value> value);
 
+Handle<Value> wrap_pyobject(PyObject *object);
+PyObject * unwrap_pyobject(Handle<Value> value);
+
 extern "C" PyObject * Hemi_pythonify(PyObject *self, PyObject *args);
 
 static PyMethodDef module_methods[] = {
