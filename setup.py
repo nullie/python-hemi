@@ -1,7 +1,7 @@
 from setuptools import setup, Extension
 
 setup(
-    name="hemi", version="0.1",
+    name="hemi", version="0.2",
     ext_modules=[
         Extension(
             "hemi",

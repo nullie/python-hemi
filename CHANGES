@@ -1,0 +1,23 @@
+Python-HEMI Changelog
+=====================
+
+Version 0.2
+-----------
+
+- Wrapped objects behave more like Javascript ones (missing properties return
+  undefined).
+- More Javascript exceptions supported.
+- Better Javascript traceback.
+- Property deleteion support.
+- Wrap Python functions to Javascript (Context.Function).
+- Create wrapped Javascript objects from Python (Context.Object).
+- Modification of Javascript objects.
+- Ability to pass wrapped Javascript objects back to Javascript.
+- Ability to convert Javascript objects to Python dict and list
+  (hemi.pythonize).
+- Fixed some bugs.
+
+Version 0.1.1
+-------------
+
+- Initial release
