@@ -12,6 +12,6 @@ setup(
     classifiers=[
         "Development Status :: 3 - Alpha",
         "License :: OSI Approved :: BSD License",
-        "Programming Language :: C",
+        "Programming Language :: C++",
     ]
 )
