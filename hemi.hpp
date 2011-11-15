@@ -203,8 +203,11 @@ void set_exception(TryCatch &trycatch);
 class UnwrapError {
 protected:
     PyObject *m_object;
+    PyObject *m_type;
+    PyObject *m_value;
+    PyObject *m_traceback;
 public:
-    UnwrapError(PyObject *object);
+    UnwrapError(PyObject *object, bool exception = false);
 
     void set_exception();
     PyObject * get_message();

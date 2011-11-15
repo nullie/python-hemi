@@ -247,6 +247,7 @@ extern "C" int ObjectWrapper_setitem(ObjectWrapper *self, PyObject *item, PyObje
             js_value = unwrap(value);
     } catch(UnwrapError error) {
         error.set_exception();
+
         return -1;
     }
 
@@ -466,6 +467,11 @@ Handle<Value> unwrap(PyObject *py) {
 
     if(PyString_Check(py)) {
         PyObject *unicode = PyUnicode_FromObject(py);
+
+        if(unicode == NULL) {
+            throw UnwrapError(py, true);
+        }
+
         PyObject *py_string = PyUnicode_AsUTF8String(unicode);
 
         Handle<String> js_string = String::New(PyString_AS_STRING(py_string));
@@ -524,11 +530,23 @@ Handle<Value> unwrap(PyObject *py) {
     throw UnwrapError(py);
 };
 
-UnwrapError::UnwrapError(PyObject *object) {
+UnwrapError::UnwrapError(PyObject *object, bool exception) {
     m_object = object;
+
+    if(exception) {
+        PyErr_Fetch(&m_type, &m_value, &m_traceback);
+    } else {
+        m_type = m_value = m_traceback = NULL;
+    }
 }
 
 void UnwrapError::set_exception() {
+    if(m_type) {
+        PyErr_Restore(m_type, m_value, m_traceback);
+
+        return;
+    }
+
     PyObject *message = get_message();
 
     PyErr_SetObject(PyExc_TypeError, message);
