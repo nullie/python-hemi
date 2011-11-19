@@ -474,7 +474,10 @@ Handle<Value> unwrap(PyObject *py) {
 
         PyObject *py_string = PyUnicode_AsUTF8String(unicode);
 
-        Handle<String> js_string = String::New(PyString_AS_STRING(py_string));
+        Handle<String> js_string = String::NewSymbol(
+            PyString_AS_STRING(py_string),
+            PyString_GET_SIZE(py_string)
+        );
 
         Py_DECREF(py_string);
         Py_DECREF(unicode);
@@ -485,7 +488,10 @@ Handle<Value> unwrap(PyObject *py) {
     if(PyUnicode_Check(py)) {
         PyObject *py_string = PyUnicode_AsUTF8String(py);
 
-        Handle<String> js_string = String::New(PyString_AS_STRING(py_string));
+        Handle<String> js_string = String::NewSymbol(
+            PyString_AS_STRING(py_string),
+            PyString_GET_SIZE(py_string)
+        );
 
         Py_DECREF(py_string);
 

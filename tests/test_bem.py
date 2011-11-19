@@ -110,3 +110,20 @@ def test_bem():
     html = context.locals.BEMHTML.apply(BEMJSON)
 
     assert html == HTML
+
+context = bemhtml = None
+
+def setup_bem():
+    global context, bemhtml
+
+    context = hemi.Context()
+
+    context.eval(BEMHTML)
+
+    bemhtml = context.locals.BEMHTML
+
+from nose.tools import with_setup
+
+@with_setup(setup_bem)
+def perf_bem():
+    bemhtml.apply(BEMJSON)

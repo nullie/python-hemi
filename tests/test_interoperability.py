@@ -1,6 +1,4 @@
-from datetime import datetime
-
-from nose.tools import raises
+# -*- coding: utf-8 -*-
 
 import hemi
 
@@ -75,3 +73,13 @@ def test_function():
     rv = f()
 
     assert rv == 'ok'
+
+
+def test_unicode():
+    context = hemi.Context()
+
+    assert context.eval(u'"привет"') == u'привет'
+
+    context.eval("function f(arg) { return arg }")
+
+    assert context.locals.f(u'привет') == u'привет'
