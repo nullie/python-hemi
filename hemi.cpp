@@ -618,7 +618,7 @@ PyObject * pythonify_primitive(Handle<Value> value) {
         Py_RETURN_NONE;
 
     if(value->IsUndefined()) {
-        return Py_INCREF(PyUndefined), PyUndefined;
+        return Py_INCREF(Py_Undefined), Py_Undefined;
     }
 
     if(value->IsString()) {
@@ -764,7 +764,7 @@ inithemi(void)
     if (PyType_Ready(&UndefinedType) < 0)
         return;
 
-    PyUndefined = PyObject_New(PyObject, &UndefinedType);
+    Py_Undefined = PyObject_New(PyObject, &UndefinedType);
 
     m = Py_InitModule3("hemi", module_methods,
                        "Lightweight V8 wrapper.");
@@ -772,8 +772,8 @@ inithemi(void)
     Py_INCREF(&ContextWrapperType);
     PyModule_AddObject(m, "Context", (PyObject *)&ContextWrapperType);
 
-    Py_INCREF(PyUndefined);
-    PyModule_AddObject(m, "undefined", PyUndefined);
+    Py_INCREF(Py_Undefined);
+    PyModule_AddObject(m, "undefined", Py_Undefined);
 
     for(supported_error_type *t = supported_errors; t->name; t++) {
         Py_INCREF(t->type);

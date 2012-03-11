@@ -178,7 +178,7 @@ static PyTypeObject UndefinedType = {
     "Javascript undefined",      /* tp_doc */
 };
 
-PyObject *PyUndefined;
+PyObject *Py_Undefined;
 
 typedef struct {
     const char *name;
