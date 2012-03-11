@@ -503,6 +503,16 @@ Handle<Value> unwrap(PyObject *py) {
         return wrapper->object;
     }
 
+    if(PyObject_HasAttrString(py, "__json__")) {
+	PyObject *json = PyObject_CallMethod(py, "__json__", NULL);
+
+	if(json == NULL) {
+	    throw UnwrapError(py, true);
+	}
+
+	return unwrap(json);
+    }
+
     if(PyList_Check(py)) {
         uint32_t length = PyList_GET_SIZE(py);
 
