@@ -352,7 +352,6 @@ PyObject * pythonify_stacktrace(Handle<Array> stacktrace) {
         code->co_firstlineno = 0;
         code->co_lnotab = NULL;
         code->co_zombieframe = NULL;
-        code->co_weakreflist = NULL;
 
         PyFrameObject *frame = PyObject_New(PyFrameObject, &PyFrame_Type);
 
