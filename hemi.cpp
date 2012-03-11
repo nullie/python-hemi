@@ -447,6 +447,9 @@ Handle<Value> unwrap(PyObject *py) {
     if(py == Py_None)
         return Null();
 
+    if(py == Py_Undefined)
+	return Undefined();
+
     if(PyInt_Check(py)) {
         long value = PyInt_AS_LONG(py);
 
