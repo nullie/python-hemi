@@ -506,8 +506,8 @@ Handle<Value> unwrap(PyObject *py) {
         return wrapper->object;
     }
 
-    if(PyObject_HasAttrString(py, "__json__")) {
-	PyObject *json = PyObject_CallMethod(py, "__json__", NULL);
+    if(PyObject_HasAttrString(py, (char *)"__json__")) {
+	PyObject *json = PyObject_CallMethod(py, (char *)"__json__", NULL);
 
 	if(json == NULL) {
 	    throw UnwrapError(py, true);
@@ -633,7 +633,7 @@ PyObject * pythonify_primitive(Handle<Value> value) {
 }
 
 void dispose_reference(Persistent<Value> object, void *o) {
-    Py_DECREF(o);
+    Py_DECREF((PyObject *)o);
 }
 
 Handle<Value> wrap_pyobject(PyObject *o) {

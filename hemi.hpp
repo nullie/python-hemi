@@ -42,7 +42,7 @@ static PyGetSetDef ContextWrapper_getseters[] = {
 static PyTypeObject ContextWrapperType = {
     PyObject_HEAD_INIT(NULL)
     0,                             /* ob_size */
-    "hemi.Context",                /* tp_name */
+    (char *)"hemi.Context",                /* tp_name */
     sizeof(ContextWrapper),               /* tp_basicsize */
     0,                             /* tp_itemsize */
     (destructor)ContextWrapper_dealloc,   /* tp_dealloc */
@@ -61,7 +61,7 @@ static PyTypeObject ContextWrapperType = {
     0,                             /* tp_setattro */
     0,                             /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT,            /* tp_flags */
-    "Interpreter context",         /* tp_doc */
+    (char *)"Interpreter context",       /* tp_doc */
     0,		                       /* tp_traverse */
     0,		                       /* tp_clear */
     0,		                       /* tp_richcompare */
