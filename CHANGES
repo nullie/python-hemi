@@ -4,6 +4,10 @@ Python-HEMI Changelog
 Version 0.2
 -----------
 
+- Support unwrapping hemi.undefined.
+- __json__ method for unwrapping user-defined types.
+- Compile with python 2.5.
+- Symbolize all strings for faster BEM execution.
 - Raise exception on non-ascii strings.
 - Wrapped objects behave more like Javascript ones (missing properties return
   undefined).
