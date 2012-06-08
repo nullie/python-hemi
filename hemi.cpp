@@ -291,7 +291,7 @@ extern "C" int ObjectWrapper_setattr(ObjectWrapper *self, PyObject *name, PyObje
 };
 
 extern "C" PyObject * FunctionWrapper_call(ObjectWrapper *self, PyObject *args, PyObject *kw) {
-    int argc = (int)PySequence_Size(args);
+    int argc = (int)PyTuple_GET_SIZE(args);
 
     HandleScope handle_scope;
 
@@ -301,7 +301,7 @@ extern "C" PyObject * FunctionWrapper_call(ObjectWrapper *self, PyObject *args, 
 
     try {
         for(int i = 0; i < argc; i++) {
-            argv[i] = unwrap(PySequence_GetItem(args, i));
+            argv[i] = unwrap(PyTuple_GET_ITEM(args, i));
         }
     } catch (UnwrapError error) {
         error.set_exception();
