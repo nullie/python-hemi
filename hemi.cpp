@@ -507,7 +507,7 @@ Handle<Value> unwrap(PyObject *py) {
     }
 
     if(PyObject_HasAttrString(py, (char *)"__json__")) {
-	PyObject *json = PyObject_CallMethod(py, (char *)"__json__", NULL);
+	PyObject *py_json = PyObject_CallMethod(py, (char *)"__json__", NULL);
 
 	if(py_json == NULL) {
 	    throw UnwrapError(py, true);
