@@ -1,6 +1,11 @@
 Python-HEMI Changelog
 =====================
 
+Version 0.2.2
+-------------
+
+- Fixed memory leak in __json__ unwrap.
+
 Version 0.2
 -----------
 
