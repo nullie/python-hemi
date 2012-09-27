@@ -1,6 +1,11 @@
 Python-HEMI Changelog
 =====================
 
+Version 0.2.4
+-------------
+
+- Remove troublesome traceback mocking.
+
 Version 0.2.3
 -------------
 
