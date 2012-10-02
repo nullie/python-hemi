@@ -90,38 +90,3 @@ def test_python_exception():
         assert False
     except hemi.Error, e:
         assert e.message == 'Exception: test'
-
-
-def test_traceback():
-    source = """
-    function f1() {
-        f.f;
-    }
-    function f2() {
-        f1();
-    }
-    function f3() {
-        f2();
-    }
-    """
-    ctx = hemi.Context()
-
-    ctx.eval(source)
-
-    try:
-        ctx.locals.f3()
-
-        assert False
-    except Exception, e:
-        etype, value, tb = sys.exc_info()
-
-        lines = traceback.format_exception(etype, value, tb)
-
-        assert lines[2:] == [
-            u'  File "<string>", line 9, in f3\n',
-            u'  File "<string>", line 6, in f2\n',
-            u'  File "<string>", line 3, in f1\n',
-            u'  File "<string>", line 3\n',
-            u'    f.f;\n',
-            u'    ^\n', 'ReferenceError: f is not defined\n',
-        ]
