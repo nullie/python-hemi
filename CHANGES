@@ -1,6 +1,11 @@
 Python-HEMI Changelog
 =====================
 
+Version 0.2.5
+-------------
+
+- Support passing long integers
+
 Version 0.2.4
 -------------
 

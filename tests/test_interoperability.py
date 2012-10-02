@@ -83,3 +83,11 @@ def test_unicode():
     context.eval("function f(arg) { return arg }")
 
     assert context.locals.f(u'привет') == u'привет'
+
+
+def test_longint():
+    context = hemi.Context()
+
+    context.eval("function f(arg) { return arg + 1 }")
+
+    assert context.locals.f(213L) == 214L

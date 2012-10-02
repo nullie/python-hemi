@@ -380,7 +380,7 @@ Handle<Value> unwrap(PyObject *py) {
         return Null();
 
     if(py == Py_Undefined)
-	return Undefined();
+        return Undefined();
 
     if(PyInt_Check(py)) {
         long value = PyInt_AS_LONG(py);
@@ -394,6 +394,16 @@ Handle<Value> unwrap(PyObject *py) {
             if(value > 0ll && value < 1ll << 32)
                 return Integer::NewFromUnsigned(value);
         }
+    }
+
+    if(PyLong_Check(py)) {
+        long value = PyLong_AsLong(py);
+
+        if(value == -1 && PyErr_Occurred()) {
+            throw UnwrapError(py, true);
+        }
+
+        return Integer::New(value);
     }
 
     if(PyFloat_Check(py))
@@ -439,11 +449,11 @@ Handle<Value> unwrap(PyObject *py) {
     }
 
     if(PyObject_HasAttrString(py, (char *)"__json__")) {
-	PyObject *py_json = PyObject_CallMethod(py, (char *)"__json__", NULL);
+        PyObject *py_json = PyObject_CallMethod(py, (char *)"__json__", NULL);
 
-	if(py_json == NULL) {
-	    throw UnwrapError(py, true);
-	}
+        if(py_json == NULL) {
+            throw UnwrapError(py, true);
+        }
 
         Handle<Value> json = unwrap(py_json);
 

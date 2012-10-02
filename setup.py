@@ -1,7 +1,7 @@
 from setuptools import setup, Extension
 
 setup(
-    name="hemi", version="0.2.4",
+    name="hemi", version="0.2.5",
     ext_modules=[
         Extension(
             "hemi",
@@ -10,7 +10,7 @@ setup(
         )
     ],
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "License :: OSI Approved :: BSD License",
         "Programming Language :: C++",
     ]
